@@ -886,6 +886,7 @@ async function loadInsights() {
 // ==================== COMPANION GALLERY ====================
 
 async function loadCompanionGallery() {
+  if (!currentUser) return;
   try {
     const res = await fetch(`${API}/users/${currentUser.id}/companions`);
     const userCompanions = await res.json();
