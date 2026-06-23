@@ -10,12 +10,27 @@ let avatarRenderer = null;
 let mainAvatarId = null;
 let currentView = 'dashboard';
 let currentReflectionPrompt = '';
+let voiceInput = null;
+let voiceSpeaker = null;
+let notifManager = null;
+let achievementSystem = null;
+let userSettings = {};
+let deferredInstallPrompt = null;
 
 // ==================== INITIALIZATION ====================
 
 document.addEventListener('DOMContentLoaded', () => {
   avatarRenderer = new AvatarRenderer();
   initParticles();
+
+  // Initialize subsystems
+  if (window.VoiceInput) voiceInput = new VoiceInput();
+  if (window.VoiceSpeaker) voiceSpeaker = new VoiceSpeaker();
+  if (window.NotificationManager) {
+    notifManager = new NotificationManager();
+    notifManager.init();
+  }
+  if (window.AchievementSystem) achievementSystem = new AchievementSystem();
 
   const savedUser = localStorage.getItem('serenity_user');
   if (savedUser) {
@@ -25,6 +40,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const savedTheme = localStorage.getItem('serenity_theme');
   if (savedTheme) setTheme(savedTheme, false);
+
+  // PWA install prompt
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    const btn = document.getElementById('install-pwa-btn');
+    if (btn) btn.style.display = 'inline-flex';
+  });
 });
 
 async function initApp() {
@@ -36,6 +59,80 @@ async function initApp() {
   await loadCompanions();
   updateGreeting();
   loadDashboard();
+  loadUserSettings();
+  initVoiceControls();
+
+  if (notifManager && currentUser) {
+    notifManager.loadAndSchedule(currentUser.id);
+  }
+
+  // Check achievements periodically
+  checkAchievements();
+}
+
+async function loadUserSettings() {
+  if (!currentUser) return;
+  try {
+    const res = await fetch(`${API}/users/${currentUser.id}/settings`);
+    userSettings = await res.json();
+
+    if (userSettings.has_api_key) {
+      const status = document.getElementById('api-key-status');
+      if (status) status.textContent = 'API key configured — AI-powered responses active';
+      if (status) status.style.color = 'var(--accent-primary)';
+    }
+
+    const voiceToggle = document.getElementById('setting-voice-enabled');
+    if (voiceToggle) voiceToggle.checked = !!userSettings.voice_enabled;
+    const speakToggle = document.getElementById('setting-auto-speak');
+    if (speakToggle) speakToggle.checked = !!userSettings.auto_speak;
+
+  } catch (e) {}
+}
+
+function initVoiceControls() {
+  if (!window.VoiceUI) return;
+
+  const micContainer = document.getElementById('voice-mic-container');
+  if (micContainer) {
+    const micBtn = VoiceUI.createMicButton();
+    micContainer.appendChild(micBtn);
+
+    micBtn.addEventListener('click', () => {
+      if (!voiceInput || !voiceInput.isSupported()) {
+        showToast('Voice input not supported in this browser', 'info');
+        return;
+      }
+
+      if (voiceInput.isListening()) {
+        voiceInput.stop();
+        micBtn.classList.remove('listening');
+        VoiceUI.hideListeningIndicator();
+      } else {
+        voiceInput.start();
+        micBtn.classList.add('listening');
+        VoiceUI.showListeningIndicator();
+      }
+    });
+
+    if (voiceInput) {
+      voiceInput.onResult((text) => {
+        document.getElementById('chat-input').value = text;
+      });
+      voiceInput.onEnd(() => {
+        micBtn.classList.remove('listening');
+        VoiceUI.hideListeningIndicator();
+        const input = document.getElementById('chat-input');
+        if (input.value.trim()) sendMessage();
+      });
+    }
+  }
+
+  const speakerContainer = document.getElementById('voice-speaker-container');
+  if (speakerContainer && window.VoiceUI) {
+    const toggle = VoiceUI.createSpeakerToggle();
+    speakerContainer.appendChild(toggle);
+  }
 }
 
 // ==================== ONBOARDING ====================
@@ -126,7 +223,10 @@ function showView(viewName) {
     case 'habits': loadHabits(); break;
     case 'reflect': loadReflections(); break;
     case 'insights': loadInsights(); break;
+    case 'exercises': loadExerciseStats(); break;
+    case 'achievements': loadAchievementsView(); break;
     case 'companions-gallery': loadCompanionGallery(); break;
+    case 'settings': loadSettingsState(); break;
   }
 }
 
@@ -328,7 +428,10 @@ async function sendMessage() {
     // Simulate slight delay for natural feeling
     await new Promise(r => setTimeout(r, 800 + Math.random() * 1200));
 
-    const res = await fetch(`${API}/chat`, {
+    // Use AI-powered endpoint if API key is configured
+    const chatEndpoint = userSettings.has_api_key ? `${API}/chat/ai` : `${API}/chat`;
+
+    const res = await fetch(chatEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -343,8 +446,27 @@ async function sendMessage() {
 
     addChatMessage(data.message, 'companion');
 
+    // Show AI badge if powered by Claude
+    if (data.ai_powered) {
+      const msgs = document.getElementById('chat-messages');
+      const lastMsg = msgs.lastElementChild;
+      if (lastMsg) {
+        const badge = document.createElement('span');
+        badge.className = 'ai-badge';
+        badge.textContent = 'AI';
+        badge.title = 'Powered by Claude AI';
+        lastMsg.appendChild(badge);
+      }
+    }
+
     if (data.companion_expression && mainAvatarId) {
       avatarRenderer.setExpression(mainAvatarId, data.companion_expression);
+    }
+
+    // Auto-speak response if enabled
+    if (userSettings.auto_speak && voiceSpeaker && voiceSpeaker.isSupported()) {
+      const voiceConfig = voiceSpeaker.getCompanionVoice(currentCompanion.id);
+      voiceSpeaker.speak(data.message, voiceConfig);
     }
 
     // Update bond meter
@@ -1077,6 +1199,258 @@ function formatSpecialty(s) {
 function getAvatarGradient(config) {
   const c = typeof config === 'string' ? JSON.parse(config) : config;
   return `linear-gradient(135deg, ${c.accentColor || '#7EB09B'}, ${c.outfitColor || '#E8DDD3'})`;
+}
+
+// ==================== EXERCISES ====================
+
+async function loadExerciseStats() {
+  if (!currentUser) return;
+  try {
+    const res = await fetch(`${API}/exercises/${currentUser.id}/stats`);
+    const data = await res.json();
+
+    const container = document.getElementById('exercise-stats-content');
+    if (!data.exercises || data.exercises.length === 0) {
+      container.innerHTML = '<p class="empty-state">Complete your first exercise to see stats here!</p>';
+      return;
+    }
+
+    const exerciseNames = {
+      'box-breathing': 'Box Breathing',
+      '478-breathing': '4-7-8 Breathing',
+      'grounding': '5-4-3-2-1 Grounding',
+      'body-scan': 'Body Scan',
+      'meditation-timer': 'Meditation',
+      'pmr': 'Muscle Relaxation',
+      'sleep-stories': 'Sleep Stories'
+    };
+
+    container.innerHTML = `
+      <div class="exercise-stats-summary">
+        <div class="stat-item"><strong>${data.total}</strong> exercises completed</div>
+      </div>
+      ${data.exercises.map(e => `
+        <div class="exercise-stat-row">
+          <span class="exercise-stat-name">${exerciseNames[e.exercise_type] || e.exercise_type}</span>
+          <span class="exercise-stat-count">${e.count}x</span>
+          <span class="exercise-stat-time">${Math.round((e.total_seconds || 0) / 60)} min total</span>
+        </div>
+      `).join('')}
+    `;
+  } catch (e) {}
+}
+
+// Override exercise completion to log to backend
+const _origCloseExercise = window.closeExercise;
+window.addEventListener('exerciseComplete', async (e) => {
+  if (!currentUser) return;
+  const { type, duration } = e.detail || {};
+  try {
+    await fetch(`${API}/exercises/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: currentUser.id,
+        exercise_type: type || 'unknown',
+        duration_seconds: duration || 0
+      })
+    });
+    checkAchievements();
+  } catch (e) {}
+});
+
+// ==================== ACHIEVEMENTS ====================
+
+async function loadAchievementsView() {
+  if (!achievementSystem || !currentUser) return;
+
+  await checkAchievements();
+
+  const all = achievementSystem.getAll();
+  const progress = achievementSystem.getProgress();
+
+  const progressFill = document.getElementById('achievement-progress-fill');
+  if (progressFill) progressFill.style.width = `${progress}%`;
+  const progressText = document.getElementById('achievement-progress-text');
+  if (progressText) progressText.textContent = `${Math.round(progress)}% Complete (${achievementSystem.getEarned().length}/${all.length})`;
+
+  const grid = document.getElementById('achievements-grid');
+  if (!grid) return;
+
+  const categories = {};
+  all.forEach(a => {
+    if (!categories[a.category]) categories[a.category] = [];
+    categories[a.category].push(a);
+  });
+
+  grid.innerHTML = Object.entries(categories).map(([cat, achievements]) => `
+    <div class="achievement-category">
+      <h3 class="achievement-cat-title">${cat.charAt(0).toUpperCase() + cat.slice(1)}</h3>
+      <div class="achievement-cat-grid">
+        ${achievements.map(a => `
+          <div class="achievement-item ${a.earned ? 'earned' : 'locked'}">
+            <div class="achievement-icon-wrap">
+              <span class="achievement-icon">${a.icon}</span>
+            </div>
+            <div class="achievement-info">
+              <h4>${a.name}</h4>
+              <p>${a.description}</p>
+            </div>
+            ${a.earned ? '<i class="fas fa-check-circle achievement-check"></i>' : '<i class="fas fa-lock achievement-lock-icon"></i>'}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function checkAchievements() {
+  if (!achievementSystem || !currentUser) return;
+
+  try {
+    const res = await fetch(`${API}/achievements/${currentUser.id}/stats`);
+    const stats = await res.json();
+    const newlyEarned = achievementSystem.checkAll(stats);
+
+    for (const achievement of newlyEarned) {
+      achievementSystem.showUnlockNotification(achievement);
+
+      await fetch(`${API}/achievements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: currentUser.id,
+          achievement_key: achievement.key
+        })
+      });
+    }
+  } catch (e) {}
+}
+
+// ==================== SETTINGS FEATURES ====================
+
+async function saveApiKey() {
+  const input = document.getElementById('api-key-input');
+  const key = input.value.trim();
+  if (!key) {
+    showToast('Please enter an API key', 'error');
+    return;
+  }
+
+  try {
+    await fetch(`${API}/users/${currentUser.id}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ai_api_key: key })
+    });
+
+    userSettings.has_api_key = true;
+    input.value = '';
+    const status = document.getElementById('api-key-status');
+    status.textContent = 'API key configured — AI-powered responses active';
+    status.style.color = 'var(--accent-primary)';
+    showToast('API key saved! Your companions are now AI-powered.', 'success');
+  } catch (e) {
+    showToast('Could not save API key', 'error');
+  }
+}
+
+async function toggleVoice(enabled) {
+  if (!currentUser) return;
+  userSettings.voice_enabled = enabled ? 1 : 0;
+  try {
+    await fetch(`${API}/users/${currentUser.id}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voice_enabled: enabled ? 1 : 0 })
+    });
+    showToast(enabled ? 'Voice input enabled' : 'Voice input disabled', 'success');
+  } catch (e) {}
+}
+
+async function toggleAutoSpeak(enabled) {
+  if (!currentUser) return;
+  userSettings.auto_speak = enabled ? 1 : 0;
+  try {
+    await fetch(`${API}/users/${currentUser.id}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auto_speak: enabled ? 1 : 0 })
+    });
+    showToast(enabled ? 'Companions will now speak responses' : 'Auto-speak disabled', 'success');
+  } catch (e) {}
+}
+
+async function enableNotifications() {
+  if (!notifManager) {
+    showToast('Notifications not supported in this browser', 'info');
+    return;
+  }
+
+  const result = await notifManager.requestPermission();
+  if (result === 'granted') {
+    showToast('Notifications enabled!', 'success');
+    loadNotificationPrefs();
+  } else {
+    showToast('Notification permission denied', 'info');
+  }
+}
+
+async function loadNotificationPrefs() {
+  if (!currentUser || !notifManager) return;
+
+  try {
+    const res = await fetch(`${API}/users/${currentUser.id}/notifications`);
+    const prefs = await res.json();
+
+    const container = document.getElementById('notification-prefs-container');
+    container.innerHTML = notifManager.createPreferencesUI(prefs, saveNotificationPrefs);
+  } catch (e) {}
+}
+
+async function saveNotificationPrefs() {
+  if (!currentUser) return;
+
+  const prefs = {
+    checkin_reminder: document.getElementById('pref-checkin')?.checked ? 1 : 0,
+    checkin_time: document.getElementById('pref-checkin-time')?.value || '09:00',
+    habit_reminders: document.getElementById('pref-habits')?.checked ? 1 : 0,
+    evening_reflection: document.getElementById('pref-evening')?.checked ? 1 : 0,
+    evening_time: document.getElementById('pref-evening-time')?.value || '20:00',
+    companion_messages: document.getElementById('pref-companion')?.checked ? 1 : 0,
+    achievement_alerts: document.getElementById('pref-achievements')?.checked ? 1 : 0
+  };
+
+  try {
+    await fetch(`${API}/users/${currentUser.id}/notifications`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(prefs)
+    });
+
+    notifManager.scheduleReminders(prefs);
+    showToast('Notification preferences saved!', 'success');
+  } catch (e) {
+    showToast('Could not save preferences', 'error');
+  }
+}
+
+function loadSettingsState() {
+  loadUserSettings();
+  if (notifManager && notifManager.isEnabled()) {
+    loadNotificationPrefs();
+  }
+}
+
+async function installPWA() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const result = await deferredInstallPrompt.userChoice;
+  if (result.outcome === 'accepted') {
+    showToast('Serenity installed! Find it on your home screen.', 'success');
+  }
+  deferredInstallPrompt = null;
+  document.getElementById('install-pwa-btn').style.display = 'none';
 }
 
 // Auto-resize chat input

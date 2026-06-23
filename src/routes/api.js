@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../db/database');
 const aiService = require('../services/ai-service');
 const PersonalityEngine = require('../services/personality-engine');
+const ClaudeService = require('../services/claude-service');
 
 // ==================== USER ROUTES ====================
 
@@ -15,6 +16,8 @@ router.post('/users', (req, res) => {
   try {
     db.prepare('INSERT INTO users (id, display_name) VALUES (?, ?)').run(id, display_name || 'Friend');
     db.prepare(`INSERT INTO user_profiles (user_id) VALUES (?)`).run(id);
+    db.prepare('INSERT OR IGNORE INTO user_settings (user_id) VALUES (?)').run(id);
+    db.prepare('INSERT OR IGNORE INTO notification_preferences (user_id) VALUES (?)').run(id);
 
     const companions = db.prepare('SELECT id FROM companions').all();
     const insertCompanion = db.prepare('INSERT INTO user_companions (user_id, companion_id) VALUES (?, ?)');
@@ -444,6 +447,10 @@ router.delete('/users/:id/data', (req, res) => {
     db.prepare('DELETE FROM reflections WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM personality_insights WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM daily_summaries WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM achievements WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM exercise_completions WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM notification_preferences WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM user_settings WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM user_companions WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM user_profiles WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM users WHERE id = ?').run(userId);
@@ -469,6 +476,337 @@ router.get('/users/:id/export', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Content-Disposition', `attachment; filename="serenity-export-${new Date().toISOString().split('T')[0]}.json"`);
   res.json(data);
+});
+
+// ==================== AI-POWERED CHAT ====================
+
+const claudeService = new ClaudeService();
+
+router.post('/chat/ai', async (req, res) => {
+  const { user_id, companion_id, message } = req.body;
+  if (!user_id || !companion_id || !message) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const db = getDb();
+
+  try {
+    const companion = db.prepare('SELECT * FROM companions WHERE id = ?').get(companion_id);
+    if (!companion) return res.status(404).json({ error: 'Companion not found' });
+
+    const settings = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(user_id);
+
+    if (settings && settings.ai_api_key_encrypted) {
+      claudeService.setApiKey(settings.ai_api_key_encrypted);
+    }
+
+    if (claudeService.isConfigured()) {
+      const engine = new PersonalityEngine(user_id);
+      const systemPrompt = engine.generateSystemPrompt(companion);
+      const emotion = aiService.detectEmotion(message);
+
+      const recentMessages = db.prepare(`
+        SELECT message, sender FROM conversations
+        WHERE user_id = ? AND companion_id = ?
+        ORDER BY created_at DESC LIMIT 20
+      `).all(user_id, companion_id).reverse();
+
+      const formattedHistory = recentMessages.map(m => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.message
+      }));
+
+      const aiResponse = await claudeService.chat(systemPrompt, formattedHistory, message);
+
+      if (aiResponse) {
+        db.prepare(`
+          INSERT INTO conversations (id, user_id, companion_id, message, sender, emotion_detected)
+          VALUES (?, ?, ?, ?, 'user', ?)
+        `).run(uuidv4(), user_id, companion_id, message, emotion);
+
+        db.prepare(`
+          INSERT INTO conversations (id, user_id, companion_id, message, sender)
+          VALUES (?, ?, ?, ?, 'companion')
+        `).run(uuidv4(), user_id, companion_id, aiResponse);
+
+        engine.updateFromInteraction(message, emotion, aiResponse);
+        aiService.updateBondLevel(user_id, companion_id);
+
+        return res.json({
+          message: aiResponse,
+          emotion_detected: emotion,
+          companion_name: companion.name,
+          companion_expression: aiService.getExpression(emotion, companion),
+          ai_powered: true
+        });
+      }
+    }
+
+    const response = await aiService.generateResponse(user_id, companion_id, message);
+    res.json({ ...response, ai_powered: false });
+
+  } catch (err) {
+    console.error('AI Chat error:', err);
+    try {
+      const response = await aiService.generateResponse(user_id, companion_id, message);
+      res.json({ ...response, ai_powered: false });
+    } catch (fallbackErr) {
+      res.status(500).json({ error: 'I had a moment — please try again.' });
+    }
+  }
+});
+
+// ==================== AI SETTINGS ====================
+
+router.put('/users/:id/settings', (req, res) => {
+  const db = getDb();
+  const { ai_api_key, voice_enabled, auto_speak, theme, avatar_url } = req.body;
+
+  try {
+    const existing = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(req.params.id);
+
+    if (existing) {
+      db.prepare(`
+        UPDATE user_settings SET
+          ai_api_key_encrypted = COALESCE(?, ai_api_key_encrypted),
+          voice_enabled = COALESCE(?, voice_enabled),
+          auto_speak = COALESCE(?, auto_speak),
+          theme = COALESCE(?, theme),
+          avatar_url = COALESCE(?, avatar_url),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ?
+      `).run(ai_api_key || null, voice_enabled ?? null, auto_speak ?? null,
+        theme || null, avatar_url || null, req.params.id);
+    } else {
+      db.prepare(`
+        INSERT INTO user_settings (user_id, ai_api_key_encrypted, voice_enabled, auto_speak, theme, avatar_url)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(req.params.id, ai_api_key || null, voice_enabled || 0,
+        auto_speak || 0, theme || 'sanctuary', avatar_url || null);
+    }
+
+    res.json({ success: true, message: 'Settings updated' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/users/:id/settings', (req, res) => {
+  const db = getDb();
+  const settings = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(req.params.id);
+  if (settings) {
+    settings.has_api_key = !!settings.ai_api_key_encrypted;
+    delete settings.ai_api_key_encrypted;
+  }
+  res.json(settings || { has_api_key: false, voice_enabled: 0, auto_speak: 0, theme: 'sanctuary' });
+});
+
+// ==================== EXERCISES ====================
+
+router.post('/exercises/complete', (req, res) => {
+  const db = getDb();
+  const { user_id, exercise_type, duration_seconds } = req.body;
+  const id = uuidv4();
+
+  try {
+    db.prepare(`
+      INSERT INTO exercise_completions (id, user_id, exercise_type, duration_seconds)
+      VALUES (?, ?, ?, ?)
+    `).run(id, user_id, exercise_type, duration_seconds || 0);
+
+    res.json({ id, message: 'Exercise completed! Your mind and body thank you.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/exercises/:userId/stats', (req, res) => {
+  const db = getDb();
+  const stats = db.prepare(`
+    SELECT exercise_type, COUNT(*) as count, SUM(duration_seconds) as total_seconds
+    FROM exercise_completions WHERE user_id = ?
+    GROUP BY exercise_type
+  `).all(req.params.userId);
+
+  const total = db.prepare(`
+    SELECT COUNT(*) as count FROM exercise_completions WHERE user_id = ?
+  `).get(req.params.userId);
+
+  res.json({ exercises: stats, total: total.count });
+});
+
+// ==================== ACHIEVEMENTS ====================
+
+router.get('/achievements/:userId', (req, res) => {
+  const db = getDb();
+  const earned = db.prepare('SELECT * FROM achievements WHERE user_id = ?').all(req.params.userId);
+  res.json(earned);
+});
+
+router.post('/achievements', (req, res) => {
+  const db = getDb();
+  const { user_id, achievement_key } = req.body;
+  const id = uuidv4();
+
+  try {
+    db.prepare(`INSERT OR IGNORE INTO achievements (id, user_id, achievement_key) VALUES (?, ?, ?)`)
+      .run(id, user_id, achievement_key);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/achievements/:userId/stats', (req, res) => {
+  const db = getDb();
+  const userId = req.params.userId;
+
+  const totalCheckins = db.prepare('SELECT COUNT(*) as c FROM mood_checkins WHERE user_id = ?').get(userId).c;
+  const totalConversations = db.prepare("SELECT COUNT(*) as c FROM conversations WHERE user_id = ? AND sender = 'user'").get(userId).c;
+  const totalHabits = db.prepare('SELECT COUNT(*) as c FROM habit_completions WHERE user_id = ?').get(userId).c;
+  const totalReflections = db.prepare('SELECT COUNT(*) as c FROM reflections WHERE user_id = ?').get(userId).c;
+  const totalExercises = db.prepare('SELECT COUNT(*) as c FROM exercise_completions WHERE user_id = ?').get(userId).c;
+
+  const exerciseTypes = db.prepare('SELECT DISTINCT exercise_type FROM exercise_completions WHERE user_id = ?')
+    .all(userId).map(e => e.exercise_type);
+
+  const companionConvos = {};
+  db.prepare("SELECT companion_id, COUNT(*) as c FROM conversations WHERE user_id = ? AND sender = 'user' GROUP BY companion_id")
+    .all(userId).forEach(r => { companionConvos[r.companion_id] = r.c; });
+
+  const bondLevels = {};
+  db.prepare('SELECT companion_id, bond_level FROM user_companions WHERE user_id = ?')
+    .all(userId).forEach(r => { bondLevels[r.companion_id] = r.bond_level; });
+
+  const habitStreaks = db.prepare('SELECT MAX(current_streak) as max_streak FROM habit_streaks WHERE user_id = ?')
+    .get(userId).max_streak || 0;
+
+  const daysActive = db.prepare("SELECT COUNT(DISTINCT date(created_at)) as c FROM mood_checkins WHERE user_id = ?")
+    .get(userId).c;
+
+  const streak = calculateStreak(db, userId);
+
+  res.json({
+    streak,
+    totalCheckins,
+    totalConversations,
+    totalHabits,
+    totalReflections,
+    totalExercises,
+    exerciseTypes,
+    companionConversations: companionConvos,
+    bondLevels,
+    habitStreaks,
+    daysActive
+  });
+});
+
+// ==================== NOTIFICATION PREFERENCES ====================
+
+router.get('/users/:id/notifications', (req, res) => {
+  const db = getDb();
+  let prefs = db.prepare('SELECT * FROM notification_preferences WHERE user_id = ?').get(req.params.id);
+  if (!prefs) {
+    db.prepare('INSERT OR IGNORE INTO notification_preferences (user_id) VALUES (?)').run(req.params.id);
+    prefs = db.prepare('SELECT * FROM notification_preferences WHERE user_id = ?').get(req.params.id);
+  }
+  res.json(prefs);
+});
+
+router.put('/users/:id/notifications', (req, res) => {
+  const db = getDb();
+  const { checkin_reminder, checkin_time, habit_reminders, evening_reflection, evening_time, companion_messages, achievement_alerts } = req.body;
+
+  try {
+    db.prepare('INSERT OR IGNORE INTO notification_preferences (user_id) VALUES (?)').run(req.params.id);
+
+    db.prepare(`
+      UPDATE notification_preferences SET
+        checkin_reminder = COALESCE(?, checkin_reminder),
+        checkin_time = COALESCE(?, checkin_time),
+        habit_reminders = COALESCE(?, habit_reminders),
+        evening_reflection = COALESCE(?, evening_reflection),
+        evening_time = COALESCE(?, evening_time),
+        companion_messages = COALESCE(?, companion_messages),
+        achievement_alerts = COALESCE(?, achievement_alerts)
+      WHERE user_id = ?
+    `).run(checkin_reminder ?? null, checkin_time || null, habit_reminders ?? null,
+      evening_reflection ?? null, evening_time || null, companion_messages ?? null,
+      achievement_alerts ?? null, req.params.id);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== ENHANCED DASHBOARD ====================
+
+router.get('/dashboard/:userId/full', (req, res) => {
+  const db = getDb();
+  const userId = req.params.userId;
+  const today = new Date().toISOString().split('T')[0];
+
+  try {
+    const todayCheckin = db.prepare(`
+      SELECT * FROM mood_checkins WHERE user_id = ? AND date(created_at) = ?
+      ORDER BY created_at DESC LIMIT 1
+    `).get(userId, today);
+
+    const habits = db.prepare(`
+      SELECT h.*, hs.current_streak, hs.longest_streak
+      FROM habits h LEFT JOIN habit_streaks hs ON h.id = hs.habit_id
+      WHERE h.user_id = ? AND h.is_active = 1
+    `).all(userId);
+
+    const completedToday = db.prepare(`
+      SELECT habit_id FROM habit_completions WHERE user_id = ? AND date(completed_at) = ?
+    `).all(userId, today);
+    const completedIds = new Set(completedToday.map(c => c.habit_id));
+
+    const weekMoods = db.prepare(`
+      SELECT mood_score, date(created_at) as date FROM mood_checkins
+      WHERE user_id = ? AND created_at >= datetime('now', '-7 days') ORDER BY created_at
+    `).all(userId);
+
+    const activeCompanion = db.prepare(`
+      SELECT c.*, uc.bond_level, uc.total_interactions FROM companions c
+      JOIN user_companions uc ON c.id = uc.companion_id
+      WHERE uc.user_id = ? AND uc.is_active = 1 LIMIT 1
+    `).get(userId);
+
+    const totalConversations = db.prepare("SELECT COUNT(*) as count FROM conversations WHERE user_id = ? AND sender = 'user'").get(userId);
+    const totalExercises = db.prepare('SELECT COUNT(*) as count FROM exercise_completions WHERE user_id = ?').get(userId);
+    const achievements = db.prepare('SELECT COUNT(*) as count FROM achievements WHERE user_id = ?').get(userId);
+    const settings = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(userId);
+
+    res.json({
+      today_checkin: todayCheckin ? { ...todayCheckin, emotions: JSON.parse(todayCheckin.emotions || '[]') } : null,
+      habits: habits.map(h => ({ ...h, completed_today: completedIds.has(h.id) })),
+      habits_completed: completedIds.size,
+      habits_total: habits.length,
+      week_moods: weekMoods,
+      active_companion: activeCompanion ? {
+        ...activeCompanion,
+        avatar_config: JSON.parse(activeCompanion.avatar_config),
+        personality_traits: JSON.parse(activeCompanion.personality_traits)
+      } : null,
+      total_conversations: totalConversations.count,
+      total_exercises: totalExercises.count,
+      total_achievements: achievements.count,
+      streak_days: calculateStreak(db, userId),
+      has_ai: !!(settings && settings.ai_api_key_encrypted),
+      settings: settings ? {
+        voice_enabled: settings.voice_enabled,
+        auto_speak: settings.auto_speak,
+        theme: settings.theme,
+        avatar_url: settings.avatar_url
+      } : null
+    });
+  } catch (err) {
+    console.error('Full dashboard error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

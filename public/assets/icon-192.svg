@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0F0F1A"/>
+      <stop offset="100%" style="stop-color:#1A1A2E"/>
+    </linearGradient>
+    <linearGradient id="orb" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7EB09B"/>
+      <stop offset="100%" style="stop-color:#9B8EC4"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="40" fill="url(#bg)"/>
+  <circle cx="96" cy="88" r="36" fill="url(#orb)" opacity="0.9"/>
+  <circle cx="96" cy="88" r="44" fill="none" stroke="#7EB09B" stroke-width="2" opacity="0.3"/>
+  <circle cx="96" cy="88" r="52" fill="none" stroke="#9B8EC4" stroke-width="1" opacity="0.15"/>
+  <text x="96" y="148" text-anchor="middle" font-family="Georgia,serif" font-size="20" font-weight="500" fill="#F0EDE8" letter-spacing="2">SERENITY</text>
+</svg>

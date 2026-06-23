@@ -165,10 +165,49 @@ function initDatabase() {
       UNIQUE(user_id, summary_date)
     );
 
+    CREATE TABLE IF NOT EXISTS achievements (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES users(id),
+      achievement_key TEXT NOT NULL,
+      earned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, achievement_key)
+    );
+
+    CREATE TABLE IF NOT EXISTS exercise_completions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES users(id),
+      exercise_type TEXT NOT NULL,
+      duration_seconds INTEGER,
+      completed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS notification_preferences (
+      user_id TEXT PRIMARY KEY REFERENCES users(id),
+      checkin_reminder INTEGER DEFAULT 1,
+      checkin_time TEXT DEFAULT '09:00',
+      habit_reminders INTEGER DEFAULT 1,
+      evening_reflection INTEGER DEFAULT 1,
+      evening_time TEXT DEFAULT '20:00',
+      companion_messages INTEGER DEFAULT 1,
+      achievement_alerts INTEGER DEFAULT 1
+    );
+
+    CREATE TABLE IF NOT EXISTS user_settings (
+      user_id TEXT PRIMARY KEY REFERENCES users(id),
+      ai_api_key_encrypted TEXT,
+      voice_enabled INTEGER DEFAULT 0,
+      auto_speak INTEGER DEFAULT 0,
+      theme TEXT DEFAULT 'sanctuary',
+      avatar_url TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_mood_checkins_user ON mood_checkins(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_habit_completions_user ON habit_completions(user_id, completed_at);
     CREATE INDEX IF NOT EXISTS idx_personality_insights_user ON personality_insights(user_id, insight_type);
+    CREATE INDEX IF NOT EXISTS idx_achievements_user ON achievements(user_id);
+    CREATE INDEX IF NOT EXISTS idx_exercise_completions_user ON exercise_completions(user_id, completed_at);
   `);
 
   seedCompanions(conn);

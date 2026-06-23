@@ -349,6 +349,15 @@ class AIService {
     return response;
   }
 
+  // Expose these for the AI-powered route
+  detectEmotionPublic(message) {
+    return this.detectEmotion(message);
+  }
+
+  getExpressionPublic(emotion, companion) {
+    return this.getExpression(emotion, companion);
+  }
+
   shouldSuggestHabit(message, emotion, recentMessages) {
     const recentCompanionMsgs = recentMessages.filter(m => m.sender === 'companion');
     const lastSuggested = recentCompanionMsgs.some(m => m.message && m.message.includes('micro-habit'));

@@ -10,6 +10,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="/css/styles.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#7EB09B">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="/assets/icon-192.svg">
 </head>
 <body>
   <div id="app">
@@ -85,12 +90,19 @@
             <i class="fas fa-feather"></i>
             <span>Reflect</span>
           </button>
+          <button class="nav-link" data-view="exercises" onclick="showView('exercises')">
+            <i class="fas fa-spa"></i>
+            <span>Exercises</span>
+          </button>
           <button class="nav-link" data-view="insights" onclick="showView('insights')">
             <i class="fas fa-chart-line"></i>
             <span>Insights</span>
           </button>
         </div>
         <div class="nav-actions">
+          <button class="nav-icon-btn" onclick="showView('achievements')" title="Achievements">
+            <i class="fas fa-trophy"></i>
+          </button>
           <button class="nav-icon-btn" onclick="showView('companions-gallery')" title="Switch Companion">
             <i class="fas fa-users"></i>
           </button>
@@ -230,11 +242,13 @@
             </div>
             <div class="chat-input-area">
               <div class="chat-input-wrapper">
+                <div id="voice-mic-container"></div>
                 <textarea id="chat-input" class="chat-input" placeholder="Share what's on your mind..." rows="1" onkeydown="handleChatKeydown(event)"></textarea>
                 <button class="chat-send-btn" onclick="sendMessage()" id="chat-send-btn">
                   <i class="fas fa-paper-plane"></i>
                 </button>
               </div>
+              <div id="voice-speaker-container" class="voice-speaker-row"></div>
               <div class="chat-suggestions" id="chat-suggestions">
                 <button class="suggestion-chip" onclick="useSuggestion('How are you doing today?')">How are you?</button>
                 <button class="suggestion-chip" onclick="useSuggestion('I need someone to talk to')">Need to talk</button>
@@ -487,6 +501,93 @@
         </div>
       </div>
 
+      <!-- ===== EXERCISES VIEW ===== -->
+      <div id="view-exercises" class="view">
+        <div class="view-content">
+          <div class="exercises-header">
+            <h2><i class="fas fa-spa"></i> Guided Exercises</h2>
+            <p>Take a moment to ground yourself with these calming exercises.</p>
+          </div>
+
+          <div class="exercises-grid">
+            <div class="card glass-card exercise-card" onclick="openExercise('box-breathing')">
+              <div class="exercise-icon">🫁</div>
+              <h3>Box Breathing</h3>
+              <p>4-4-4-4 breathing pattern to calm your nervous system</p>
+              <span class="exercise-duration">~4 min</span>
+            </div>
+
+            <div class="card glass-card exercise-card" onclick="openExercise('478-breathing')">
+              <div class="exercise-icon">🌬️</div>
+              <h3>4-7-8 Breathing</h3>
+              <p>Deep relaxation technique for anxiety and sleep</p>
+              <span class="exercise-duration">~5 min</span>
+            </div>
+
+            <div class="card glass-card exercise-card" onclick="openExercise('grounding')">
+              <div class="exercise-icon">🌍</div>
+              <h3>5-4-3-2-1 Grounding</h3>
+              <p>Sensory awareness exercise to anchor you to the present</p>
+              <span class="exercise-duration">~3 min</span>
+            </div>
+
+            <div class="card glass-card exercise-card" onclick="openExercise('body-scan')">
+              <div class="exercise-icon">🧘</div>
+              <h3>Body Scan</h3>
+              <p>Progressive relaxation through each body zone</p>
+              <span class="exercise-duration">~8 min</span>
+            </div>
+
+            <div class="card glass-card exercise-card" onclick="openExercise('meditation')">
+              <div class="exercise-icon">🔔</div>
+              <h3>Meditation Timer</h3>
+              <p>Timed meditation with gentle bell intervals</p>
+              <span class="exercise-duration">2-20 min</span>
+            </div>
+
+            <div class="card glass-card exercise-card" onclick="openExercise('muscle-relaxation')">
+              <div class="exercise-icon">💪</div>
+              <h3>Muscle Relaxation</h3>
+              <p>Tense and release each muscle group for deep calm</p>
+              <span class="exercise-duration">~12 min</span>
+            </div>
+
+            <div class="card glass-card exercise-card" onclick="openExercise('sleep-story')">
+              <div class="exercise-icon">🌙</div>
+              <h3>Sleep Stories</h3>
+              <p>Calming narratives to guide you into restful sleep</p>
+              <span class="exercise-duration">~10 min</span>
+            </div>
+          </div>
+
+          <div class="card glass-card" style="margin-top: 16px;">
+            <div class="card-header">
+              <h3><i class="fas fa-chart-bar"></i> Exercise Stats</h3>
+            </div>
+            <div id="exercise-stats-content">
+              <p class="empty-state">Complete your first exercise to see stats here!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ACHIEVEMENTS VIEW ===== -->
+      <div id="view-achievements" class="view">
+        <div class="view-content">
+          <div class="achievements-header">
+            <h2><i class="fas fa-trophy"></i> Achievements</h2>
+            <div class="achievement-progress-bar">
+              <div class="achievement-progress-fill" id="achievement-progress-fill"></div>
+            </div>
+            <p id="achievement-progress-text">0% Complete</p>
+          </div>
+
+          <div id="achievements-grid" class="achievements-grid">
+            <p class="empty-state">Loading achievements...</p>
+          </div>
+        </div>
+      </div>
+
       <!-- ===== COMPANIONS GALLERY VIEW ===== -->
       <div id="view-companions-gallery" class="view">
         <div class="view-content">
@@ -503,19 +604,62 @@
         <div class="view-content">
           <h2><i class="fas fa-gear"></i> Settings</h2>
 
+          <!-- AI Integration -->
           <div class="card glass-card settings-section">
-            <h3><i class="fas fa-shield-halved"></i> Privacy & Data</h3>
-            <p class="settings-desc">Your data never leaves this device. You're in complete control.</p>
-            <div class="settings-actions">
-              <button class="btn-secondary" onclick="exportData()">
-                <i class="fas fa-download"></i> Export My Data
-              </button>
-              <button class="btn-danger" onclick="confirmDeleteData()">
-                <i class="fas fa-trash"></i> Delete All Data
+            <h3><i class="fas fa-brain"></i> AI Integration</h3>
+            <p class="settings-desc">Connect a Claude API key for truly dynamic, context-aware conversations. Your companions will give personalized responses powered by real AI.</p>
+            <div class="form-group">
+              <label>Claude API Key</label>
+              <div class="api-key-row">
+                <input type="password" id="api-key-input" class="sanctuary-input" placeholder="sk-ant-..." autocomplete="off">
+                <button class="btn-secondary" onclick="saveApiKey()">
+                  <i class="fas fa-key"></i> Save
+                </button>
+              </div>
+              <p class="settings-hint" id="api-key-status">No API key configured — using built-in responses</p>
+            </div>
+          </div>
+
+          <!-- Voice Settings -->
+          <div class="card glass-card settings-section">
+            <h3><i class="fas fa-microphone"></i> Voice Interaction</h3>
+            <p class="settings-desc">Talk to your companion using your voice, and hear them speak back to you.</p>
+            <div class="settings-toggles">
+              <div class="pref-item">
+                <div class="pref-info">
+                  <h4>Voice Input</h4>
+                  <p>Use your microphone to speak to companions</p>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="setting-voice-enabled" onchange="toggleVoice(this.checked)">
+                  <span class="switch-slider"></span>
+                </label>
+              </div>
+              <div class="pref-item">
+                <div class="pref-info">
+                  <h4>Auto-Speak Responses</h4>
+                  <p>Companions read their responses aloud</p>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="setting-auto-speak" onchange="toggleAutoSpeak(this.checked)">
+                  <span class="switch-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notifications -->
+          <div class="card glass-card settings-section">
+            <h3><i class="fas fa-bell"></i> Notifications & Reminders</h3>
+            <p class="settings-desc">Gentle reminders to keep your wellness journey on track.</p>
+            <div id="notification-prefs-container">
+              <button class="btn-secondary" onclick="enableNotifications()">
+                <i class="fas fa-bell"></i> Enable Notifications
               </button>
             </div>
           </div>
 
+          <!-- Appearance -->
           <div class="card glass-card settings-section">
             <h3><i class="fas fa-palette"></i> Appearance</h3>
             <div class="theme-options">
@@ -538,6 +682,31 @@
             </div>
           </div>
 
+          <!-- Privacy -->
+          <div class="card glass-card settings-section">
+            <h3><i class="fas fa-shield-halved"></i> Privacy & Data</h3>
+            <p class="settings-desc">Your data never leaves this device. You're in complete control.</p>
+            <div class="settings-actions">
+              <button class="btn-secondary" onclick="exportData()">
+                <i class="fas fa-download"></i> Export My Data
+              </button>
+              <button class="btn-danger" onclick="confirmDeleteData()">
+                <i class="fas fa-trash"></i> Delete All Data
+              </button>
+            </div>
+          </div>
+
+          <!-- Mobile App -->
+          <div class="card glass-card settings-section">
+            <h3><i class="fas fa-mobile-screen"></i> Mobile App</h3>
+            <p class="settings-desc">Install Serenity as an app on your phone for the full experience with push notifications.</p>
+            <button class="btn-secondary" id="install-pwa-btn" onclick="installPWA()" style="display:none">
+              <i class="fas fa-download"></i> Install App
+            </button>
+            <p class="settings-hint" id="install-hint">On mobile, tap "Add to Home Screen" in your browser menu to install.</p>
+          </div>
+
+          <!-- About -->
           <div class="card glass-card settings-section">
             <h3><i class="fas fa-info-circle"></i> About Serenity</h3>
             <p class="settings-desc">Serenity is designed to be your daily wellness sanctuary. It's not a replacement for professional mental health care — if you're in crisis, please reach out to a professional.</p>
@@ -557,6 +726,10 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="/js/three-avatar.js"></script>
+  <script src="/js/voice.js"></script>
+  <script src="/js/exercises.js"></script>
+  <script src="/js/achievements.js"></script>
+  <script src="/js/notifications.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

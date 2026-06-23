@@ -26,7 +26,8 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
       imgSrc: ["'self'", "data:", "blob:"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "https://api.anthropic.com", "https://models.readyplayer.me", "https://readyplayer.me"],
+      frameSrc: ["'self'", "https://readyplayer.me"],
       workerSrc: ["'self'", "blob:"]
     }
   }

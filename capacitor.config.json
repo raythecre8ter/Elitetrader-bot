@@ -1,0 +1,29 @@
+{
+  "appId": "com.serenity.wellness",
+  "appName": "Serenity",
+  "webDir": "public",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0F0F1A",
+      "showSpinner": false,
+      "androidSplashResourceName": "splash",
+      "iosSplashResourceName": "Default"
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0F0F1A"
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_serenity",
+      "iconColor": "#7EB09B"
+    },
+    "Keyboard": {
+      "resize": "body",
+      "style": "DARK"
+    }
+  }
+}
