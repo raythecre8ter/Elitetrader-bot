@@ -103,6 +103,12 @@
           <button class="nav-icon-btn" onclick="showView('achievements')" title="Achievements">
             <i class="fas fa-trophy"></i>
           </button>
+          <button class="nav-icon-btn" onclick="showView('community')" title="Community">
+            <i class="fas fa-globe-americas"></i>
+          </button>
+          <button class="nav-icon-btn" onclick="showView('dreams')" title="Dream Journal">
+            <i class="fas fa-cloud-moon"></i>
+          </button>
           <button class="nav-icon-btn" onclick="showView('companions-gallery')" title="Switch Companion">
             <i class="fas fa-users"></i>
           </button>
@@ -203,13 +209,58 @@
             </div>
           </div>
 
+          <!-- Daily Challenge Card -->
+          <div class="card glass-card" id="dashboard-challenge-card">
+            <div class="card-header">
+              <h3><i class="fas fa-bolt"></i> Today's Challenge</h3>
+              <button class="btn-text" onclick="showView('challenges')">See all</button>
+            </div>
+            <div id="dashboard-challenge-content"></div>
+          </div>
+
           <!-- Mood Chart -->
           <div class="card glass-card">
             <div class="card-header">
               <h3><i class="fas fa-chart-line"></i> Your Week</h3>
+              <button class="btn-text" onclick="showView('weekly-report')"><i class="fas fa-chart-pie"></i> Full Report</button>
             </div>
             <div class="mood-chart-container">
               <canvas id="mood-chart" width="400" height="160"></canvas>
+            </div>
+          </div>
+
+          <!-- Ambient Sounds Control -->
+          <div class="card glass-card ambient-sounds-card">
+            <div class="card-header">
+              <h3><i class="fas fa-headphones"></i> Ambient Sounds</h3>
+              <button class="ambient-toggle-btn" id="ambient-toggle-btn" onclick="toggleAmbientSounds()">
+                <i class="fas fa-play"></i>
+              </button>
+            </div>
+            <div class="ambient-profiles">
+              <button class="ambient-profile-btn active" data-profile="calm" onclick="switchAmbientProfile('calm', this)">
+                <span class="ambient-emoji">🕯️</span><span>Calm</span>
+              </button>
+              <button class="ambient-profile-btn" data-profile="rain" onclick="switchAmbientProfile('rain', this)">
+                <span class="ambient-emoji">🌧️</span><span>Rain</span>
+              </button>
+              <button class="ambient-profile-btn" data-profile="nature" onclick="switchAmbientProfile('nature', this)">
+                <span class="ambient-emoji">🌿</span><span>Nature</span>
+              </button>
+              <button class="ambient-profile-btn" data-profile="fireplace" onclick="switchAmbientProfile('fireplace', this)">
+                <span class="ambient-emoji">🔥</span><span>Fire</span>
+              </button>
+              <button class="ambient-profile-btn" data-profile="night" onclick="switchAmbientProfile('night', this)">
+                <span class="ambient-emoji">🦗</span><span>Night</span>
+              </button>
+              <button class="ambient-profile-btn" data-profile="ocean" onclick="switchAmbientProfile('ocean', this)">
+                <span class="ambient-emoji">🌊</span><span>Ocean</span>
+              </button>
+            </div>
+            <div class="ambient-volume-row">
+              <i class="fas fa-volume-low"></i>
+              <input type="range" id="ambient-volume" class="ambient-volume-slider" min="0" max="100" value="30" oninput="setAmbientVolume(this.value)">
+              <i class="fas fa-volume-high"></i>
             </div>
           </div>
         </div>
@@ -230,6 +281,9 @@
                 <div class="bond-fill" id="bond-fill" style="width: 0%"></div>
               </div>
               <span class="bond-label">Bond Level</span>
+              <button class="btn-text lore-btn" onclick="openCompanionLore()" id="lore-btn">
+                <i class="fas fa-book-open"></i> Companion Story
+              </button>
             </div>
           </div>
 
@@ -719,6 +773,71 @@
         </div>
       </div>
 
+      <!-- ===== COMMUNITY VIEW ===== -->
+      <div id="view-community" class="view">
+        <div class="view-content">
+          <div class="community-header">
+            <h2><i class="fas fa-globe-americas"></i> Community Wall</h2>
+            <p>Anonymous encouragement from fellow travelers on this journey.</p>
+          </div>
+          <div id="community-share-form"></div>
+          <div class="community-filters">
+            <button class="filter-chip active" data-filter="all" onclick="filterCommunity('all', this)">All</button>
+            <button class="filter-chip" data-filter="gratitude" onclick="filterCommunity('gratitude', this)">Gratitude</button>
+            <button class="filter-chip" data-filter="wins" onclick="filterCommunity('wins', this)">Wins</button>
+            <button class="filter-chip" data-filter="reflections" onclick="filterCommunity('reflections', this)">Reflections</button>
+            <button class="filter-chip" data-filter="encouragement" onclick="filterCommunity('encouragement', this)">Encouragement</button>
+          </div>
+          <div id="community-feed"></div>
+        </div>
+      </div>
+
+      <!-- ===== DREAM JOURNAL VIEW ===== -->
+      <div id="view-dreams" class="view">
+        <div class="view-content">
+          <div class="dreams-header">
+            <h2><i class="fas fa-cloud-moon"></i> Dream Journal</h2>
+            <p>Capture and explore the landscapes of your sleeping mind.</p>
+          </div>
+          <div class="dreams-tabs">
+            <button class="dreams-tab active" onclick="showDreamTab('record', this)">Record Dream</button>
+            <button class="dreams-tab" onclick="showDreamTab('history', this)">Past Dreams</button>
+            <button class="dreams-tab" onclick="showDreamTab('insights', this)">Insights</button>
+          </div>
+          <div id="dream-tab-record" class="dream-tab-content active"></div>
+          <div id="dream-tab-history" class="dream-tab-content"></div>
+          <div id="dream-tab-insights" class="dream-tab-content"></div>
+        </div>
+      </div>
+
+      <!-- ===== WEEKLY REPORT VIEW ===== -->
+      <div id="view-weekly-report" class="view">
+        <div class="view-content">
+          <div class="report-header">
+            <h2><i class="fas fa-chart-pie"></i> Weekly Report</h2>
+          </div>
+          <div id="weekly-report-container"></div>
+        </div>
+      </div>
+
+      <!-- ===== DAILY CHALLENGE VIEW ===== -->
+      <div id="view-challenges" class="view">
+        <div class="view-content">
+          <div class="challenges-header">
+            <h2><i class="fas fa-bolt"></i> Daily Challenges</h2>
+            <p>Small acts that make a big difference.</p>
+          </div>
+          <div id="challenge-card-container"></div>
+          <div style="margin-top: 24px;">
+            <h3 style="margin-bottom: 16px; font-family: var(--font-display);">History</h3>
+            <div id="challenge-history-container"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SOS Floating Button -->
+      <div id="sos-floating-btn"></div>
+
       <!-- Toast Notifications -->
       <div id="toast-container"></div>
     </div>
@@ -730,6 +849,11 @@
   <script src="/js/exercises.js"></script>
   <script src="/js/achievements.js"></script>
   <script src="/js/notifications.js"></script>
+  <script src="/js/ambient-sounds.js"></script>
+  <script src="/js/companion-lore.js"></script>
+  <script src="/js/weekly-report.js"></script>
+  <script src="/js/community.js"></script>
+  <script src="/js/sos.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

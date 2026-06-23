@@ -449,6 +449,9 @@ router.delete('/users/:id/data', (req, res) => {
     db.prepare('DELETE FROM daily_summaries WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM achievements WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM exercise_completions WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM dreams WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM community_posts WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM daily_challenge_completions WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM notification_preferences WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM user_settings WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM user_companions WHERE user_id = ?').run(userId);
@@ -805,6 +808,90 @@ router.get('/dashboard/:userId/full', (req, res) => {
     });
   } catch (err) {
     console.error('Full dashboard error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== DREAM JOURNAL ====================
+
+router.post('/dreams', (req, res) => {
+  const db = getDb();
+  const { user_id, title, content, mood, themes, lucid } = req.body;
+  const id = uuidv4();
+  try {
+    db.prepare(`INSERT INTO dreams (id, user_id, title, content, mood, themes, lucid) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .run(id, user_id, title, content, mood || null, JSON.stringify(themes || []), lucid ? 1 : 0);
+    res.json({ id, message: 'Dream captured.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/dreams/:userId', (req, res) => {
+  const db = getDb();
+  const dreams = db.prepare('SELECT * FROM dreams WHERE user_id = ? ORDER BY created_at DESC LIMIT 50')
+    .all(req.params.userId);
+  res.json(dreams.map(d => ({ ...d, themes: JSON.parse(d.themes || '[]') })));
+});
+
+router.delete('/dreams/:id', (req, res) => {
+  const db = getDb();
+  db.prepare('DELETE FROM dreams WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
+// ==================== COMMUNITY WALL ====================
+
+router.get('/community', (req, res) => {
+  const db = getDb();
+  const { category, limit = 30, offset = 0 } = req.query;
+  let query = 'SELECT * FROM community_posts';
+  const params = [];
+  if (category) {
+    query += ' WHERE category = ?';
+    params.push(category);
+  }
+  query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+  params.push(parseInt(limit), parseInt(offset));
+  const posts = db.prepare(query).all(...params);
+  res.json(posts);
+});
+
+router.post('/community', (req, res) => {
+  const db = getDb();
+  const { user_id, content, category, emoji } = req.body;
+  const id = uuidv4();
+  try {
+    db.prepare('INSERT INTO community_posts (id, user_id, content, category, emoji) VALUES (?, ?, ?, ?, ?)')
+      .run(id, user_id || null, content, category || 'reflection', emoji || null);
+    res.json({ id, message: 'Post shared anonymously.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/community/:id/like', (req, res) => {
+  const db = getDb();
+  try {
+    db.prepare('UPDATE community_posts SET likes = likes + 1 WHERE id = ?').run(req.params.id);
+    const post = db.prepare('SELECT likes FROM community_posts WHERE id = ?').get(req.params.id);
+    res.json({ likes: post ? post.likes : 0 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== DAILY CHALLENGES ====================
+
+router.post('/challenges/complete', (req, res) => {
+  const db = getDb();
+  const { user_id, challenge_id, challenge_title } = req.body;
+  const id = uuidv4();
+  try {
+    db.prepare('INSERT OR IGNORE INTO daily_challenge_completions (id, user_id, challenge_id, challenge_title) VALUES (?, ?, ?, ?)')
+      .run(id, user_id, challenge_id, challenge_title || '');
+    res.json({ success: true });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

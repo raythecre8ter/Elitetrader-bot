@@ -16,6 +16,8 @@ let notifManager = null;
 let achievementSystem = null;
 let userSettings = {};
 let deferredInstallPrompt = null;
+let companionMemory = null;
+let currentCommunityFilter = 'all';
 
 // ==================== INITIALIZATION ====================
 
@@ -31,6 +33,12 @@ document.addEventListener('DOMContentLoaded', () => {
     notifManager.init();
   }
   if (window.AchievementSystem) achievementSystem = new AchievementSystem();
+
+  // Initialize SOS button
+  if (window.SOSMode) {
+    const sosContainer = document.getElementById('sos-floating-btn');
+    if (sosContainer) sosContainer.innerHTML = SOSMode.renderSOSButton();
+  }
 
   const savedUser = localStorage.getItem('serenity_user');
   if (savedUser) {
@@ -61,6 +69,11 @@ async function initApp() {
   loadDashboard();
   loadUserSettings();
   initVoiceControls();
+
+  // Initialize companion memory
+  if (window.CompanionMemory && currentUser) {
+    companionMemory = new CompanionMemory(currentUser.id);
+  }
 
   if (notifManager && currentUser) {
     notifManager.loadAndSchedule(currentUser.id);
@@ -227,6 +240,10 @@ function showView(viewName) {
     case 'achievements': loadAchievementsView(); break;
     case 'companions-gallery': loadCompanionGallery(); break;
     case 'settings': loadSettingsState(); break;
+    case 'community': loadCommunityView(); break;
+    case 'dreams': loadDreamsView(); break;
+    case 'weekly-report': loadWeeklyReport(); break;
+    case 'challenges': loadChallengesView(); break;
   }
 }
 
@@ -282,6 +299,28 @@ async function loadDashboard() {
     document.getElementById('dashboard-habit-progress').textContent = `${data.habits_completed}/${data.habits_total}`;
 
     drawMoodChart('mood-chart', data.week_moods);
+
+    // Daily challenge card
+    if (window.DailyChallenges) {
+      const challengeContent = document.getElementById('dashboard-challenge-content');
+      if (challengeContent) {
+        const ch = DailyChallenges.getTodaysChallenge();
+        const done = DailyChallenges.isCompletedToday();
+        challengeContent.innerHTML = `
+          <div class="dashboard-challenge">
+            <span class="challenge-icon">${ch.icon}</span>
+            <div class="challenge-info">
+              <p class="challenge-title">${ch.title}</p>
+              <span class="challenge-category">${ch.category}</span>
+            </div>
+            ${done
+              ? '<span class="challenge-done"><i class="fas fa-check"></i></span>'
+              : `<button class="btn-secondary" onclick="completeDashboardChallenge(${ch.id})">Do it!</button>`
+            }
+          </div>
+        `;
+      }
+    }
 
   } catch (err) {
     console.error('Dashboard load error:', err);
@@ -413,6 +452,11 @@ async function sendMessage() {
   input.value = '';
   input.style.height = 'auto';
   document.getElementById('chat-send-btn').disabled = true;
+
+  // Extract memories from user message
+  if (companionMemory) {
+    companionMemory.extractMemories(message);
+  }
 
   // Add user message
   addChatMessage(message, 'user');
@@ -1451,6 +1495,143 @@ async function installPWA() {
   }
   deferredInstallPrompt = null;
   document.getElementById('install-pwa-btn').style.display = 'none';
+}
+
+// ==================== AMBIENT SOUNDS ====================
+
+function toggleAmbientSounds() {
+  if (!window.AmbientSounds) return;
+  AmbientSounds.toggle();
+  const btn = document.getElementById('ambient-toggle-btn');
+  if (btn) {
+    btn.classList.toggle('playing', AmbientSounds.isPlaying());
+    btn.innerHTML = AmbientSounds.isPlaying()
+      ? '<i class="fas fa-pause"></i>'
+      : '<i class="fas fa-play"></i>';
+  }
+}
+
+function switchAmbientProfile(profile, el) {
+  if (!window.AmbientSounds) return;
+  document.querySelectorAll('.ambient-profile-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  AmbientSounds.fadeToProfile(profile, 2000);
+  const btn = document.getElementById('ambient-toggle-btn');
+  if (btn) {
+    btn.classList.add('playing');
+    btn.innerHTML = '<i class="fas fa-pause"></i>';
+  }
+}
+
+function setAmbientVolume(value) {
+  if (!window.AmbientSounds) return;
+  AmbientSounds.setVolume(parseInt(value) / 100);
+}
+
+// ==================== COMPANION LORE ====================
+
+function openCompanionLore() {
+  if (!window.CompanionLore || !currentCompanion) return;
+  const bondFill = document.getElementById('bond-fill');
+  const bondLevel = parseFloat(bondFill?.style.width) || 0;
+  const html = CompanionLore.renderLoreModal(currentCompanion.id, bondLevel);
+  if (html) {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div.firstElementChild);
+  }
+}
+
+// ==================== COMMUNITY WALL ====================
+
+function loadCommunityView() {
+  if (!window.CommunityWall) return;
+
+  const shareForm = document.getElementById('community-share-form');
+  if (shareForm) shareForm.innerHTML = CommunityWall.renderShareForm();
+
+  renderCommunityFeed();
+}
+
+function renderCommunityFeed() {
+  if (!window.CommunityWall) return;
+  const feed = document.getElementById('community-feed');
+  if (feed) feed.innerHTML = CommunityWall.renderFeed(20);
+}
+
+function filterCommunity(category, el) {
+  currentCommunityFilter = category;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderCommunityFeed();
+}
+
+// ==================== DREAM JOURNAL ====================
+
+function loadDreamsView() {
+  if (!window.DreamJournal) return;
+
+  const recordTab = document.getElementById('dream-tab-record');
+  if (recordTab) recordTab.innerHTML = DreamJournal.renderDreamForm();
+
+  loadDreamHistory();
+  loadDreamInsights();
+}
+
+function showDreamTab(tab, el) {
+  document.querySelectorAll('.dreams-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.dream-tab-content').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const content = document.getElementById(`dream-tab-${tab}`);
+  if (content) content.classList.add('active');
+
+  if (tab === 'history') loadDreamHistory();
+  if (tab === 'insights') loadDreamInsights();
+}
+
+function loadDreamHistory() {
+  if (!window.DreamJournal) return;
+  const container = document.getElementById('dream-tab-history');
+  if (!container) return;
+  const dreams = DreamJournal.getDreams(30);
+  container.innerHTML = DreamJournal.renderDreamList(dreams);
+}
+
+function loadDreamInsights() {
+  if (!window.DreamJournal) return;
+  const container = document.getElementById('dream-tab-insights');
+  if (!container) return;
+  const stats = DreamJournal.getDreamStats();
+  container.innerHTML = DreamJournal.renderDreamInsights(stats);
+}
+
+// ==================== WEEKLY REPORT ====================
+
+function loadWeeklyReport() {
+  if (!window.WeeklyReport || !currentUser) return;
+  const container = document.getElementById('weekly-report-container');
+  if (!container) return;
+  container.innerHTML = '';
+  container.appendChild(WeeklyReport.renderReportView(currentUser.id));
+}
+
+// ==================== DAILY CHALLENGES ====================
+
+function loadChallengesView() {
+  if (!window.DailyChallenges) return;
+
+  const cardContainer = document.getElementById('challenge-card-container');
+  if (cardContainer) cardContainer.innerHTML = DailyChallenges.renderChallengeCard();
+
+  const historyContainer = document.getElementById('challenge-history-container');
+  if (historyContainer) historyContainer.innerHTML = DailyChallenges.renderHistoryList();
+}
+
+function completeDashboardChallenge(challengeId) {
+  if (!window.DailyChallenges) return;
+  DailyChallenges.completeChallenge(challengeId);
+  loadDashboard();
+  showToast('Challenge completed! Nice work!', 'success');
 }
 
 // Auto-resize chat input

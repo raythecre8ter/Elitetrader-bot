@@ -202,12 +202,44 @@ function initDatabase() {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS dreams (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES users(id),
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      mood TEXT,
+      themes TEXT DEFAULT '[]',
+      lucid INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS community_posts (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      content TEXT NOT NULL,
+      category TEXT DEFAULT 'reflection',
+      emoji TEXT,
+      likes INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS daily_challenge_completions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES users(id),
+      challenge_id INTEGER NOT NULL,
+      challenge_title TEXT,
+      completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, challenge_id, completed_at)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_mood_checkins_user ON mood_checkins(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_habit_completions_user ON habit_completions(user_id, completed_at);
     CREATE INDEX IF NOT EXISTS idx_personality_insights_user ON personality_insights(user_id, insight_type);
     CREATE INDEX IF NOT EXISTS idx_achievements_user ON achievements(user_id);
     CREATE INDEX IF NOT EXISTS idx_exercise_completions_user ON exercise_completions(user_id, completed_at);
+    CREATE INDEX IF NOT EXISTS idx_dreams_user ON dreams(user_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_community_posts ON community_posts(created_at);
   `);
 
   seedCompanions(conn);
