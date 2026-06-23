@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Serenity — Your AI Wellness Sanctuary</title>
+  <meta name="description" content="A calming AI-powered mental wellness companion with personalized habit tracking and adaptive conversations.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#7EB09B">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="/assets/icon-192.svg">
+</head>
+<body>
+  <div id="app">
+    <!-- ========== PARTICLES BACKGROUND ========== -->
+    <canvas id="particles-canvas"></canvas>
+
+    <!-- ========== ONBOARDING SCREEN ========== -->
+    <div id="onboarding-screen" class="screen active">
+      <div class="onboarding-container">
+        <div class="onboarding-glow"></div>
+        <div class="onboarding-content">
+          <div class="logo-mark">
+            <div class="logo-orb">
+              <div class="orb-ring"></div>
+              <div class="orb-core"></div>
+            </div>
+          </div>
+          <h1 class="app-title">Serenity</h1>
+          <p class="app-subtitle">Your AI Wellness Sanctuary</p>
+          <p class="onboarding-desc">A safe, private space where an adaptive AI companion helps you build better mental wellness habits — one gentle moment at a time.</p>
+
+          <div class="onboarding-step" id="step-name">
+            <label class="input-label">What should I call you?</label>
+            <input type="text" id="user-name-input" class="sanctuary-input" placeholder="Your name..." autocomplete="off">
+            <button class="btn-primary" onclick="submitName()">
+              <span>Begin Your Journey</span>
+              <i class="fas fa-arrow-right"></i>
+            </button>
+          </div>
+
+          <div class="onboarding-step hidden" id="step-companion">
+            <label class="input-label">Choose your first companion</label>
+            <p class="step-hint">Each companion has a unique personality that adapts to yours over time. You can always switch later.</p>
+            <div id="companion-select-grid" class="companion-grid"></div>
+          </div>
+
+          <div class="privacy-note">
+            <i class="fas fa-shield-halved"></i>
+            <span>All data stays on this device. Your privacy is sacred.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== MAIN APP ========== -->
+    <div id="main-app" class="screen hidden">
+      <!-- Navigation -->
+      <nav id="main-nav">
+        <div class="nav-brand" onclick="showView('dashboard')">
+          <div class="nav-orb">
+            <div class="orb-core small"></div>
+          </div>
+          <span class="nav-title">Serenity</span>
+        </div>
+        <div class="nav-links">
+          <button class="nav-link active" data-view="dashboard" onclick="showView('dashboard')">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+          </button>
+          <button class="nav-link" data-view="companion" onclick="showView('companion')">
+            <i class="fas fa-comments"></i>
+            <span>Companion</span>
+          </button>
+          <button class="nav-link" data-view="checkin" onclick="showView('checkin')">
+            <i class="fas fa-heart-pulse"></i>
+            <span>Check-in</span>
+          </button>
+          <button class="nav-link" data-view="habits" onclick="showView('habits')">
+            <i class="fas fa-seedling"></i>
+            <span>Habits</span>
+          </button>
+          <button class="nav-link" data-view="reflect" onclick="showView('reflect')">
+            <i class="fas fa-feather"></i>
+            <span>Reflect</span>
+          </button>
+          <button class="nav-link" data-view="exercises" onclick="showView('exercises')">
+            <i class="fas fa-spa"></i>
+            <span>Exercises</span>
+          </button>
+          <button class="nav-link" data-view="insights" onclick="showView('insights')">
+            <i class="fas fa-chart-line"></i>
+            <span>Insights</span>
+          </button>
+        </div>
+        <div class="nav-actions">
+          <button class="nav-icon-btn" onclick="showView('achievements')" title="Achievements">
+            <i class="fas fa-trophy"></i>
+          </button>
+          <button class="nav-icon-btn" onclick="showView('community')" title="Community">
+            <i class="fas fa-globe-americas"></i>
+          </button>
+          <button class="nav-icon-btn" onclick="showView('dreams')" title="Dream Journal">
+            <i class="fas fa-cloud-moon"></i>
+          </button>
+          <button class="nav-icon-btn" onclick="showView('companions-gallery')" title="Switch Companion">
+            <i class="fas fa-users"></i>
+          </button>
+          <button class="nav-icon-btn" onclick="showView('settings')" title="Settings">
+            <i class="fas fa-gear"></i>
+          </button>
+        </div>
+      </nav>
+
+      <!-- Mobile Bottom Nav -->
+      <nav id="mobile-nav">
+        <button class="mobile-nav-btn active" data-view="dashboard" onclick="showView('dashboard')">
+          <i class="fas fa-home"></i>
+          <span>Home</span>
+        </button>
+        <button class="mobile-nav-btn" data-view="companion" onclick="showView('companion')">
+          <i class="fas fa-comments"></i>
+          <span>Chat</span>
+        </button>
+        <button class="mobile-nav-btn checkin-btn" data-view="checkin" onclick="showView('checkin')">
+          <div class="checkin-btn-inner">
+            <i class="fas fa-heart-pulse"></i>
+          </div>
+          <span>Check-in</span>
+        </button>
+        <button class="mobile-nav-btn" data-view="habits" onclick="showView('habits')">
+          <i class="fas fa-seedling"></i>
+          <span>Habits</span>
+        </button>
+        <button class="mobile-nav-btn" data-view="insights" onclick="showView('insights')">
+          <i class="fas fa-chart-line"></i>
+          <span>Insights</span>
+        </button>
+      </nav>
+
+      <!-- ===== DASHBOARD VIEW ===== -->
+      <div id="view-dashboard" class="view active">
+        <div class="view-content">
+          <div class="dashboard-header">
+            <div class="greeting-section">
+              <h1 class="greeting-text" id="greeting-text">Good morning</h1>
+              <p class="greeting-sub" id="greeting-sub">How are you feeling today?</p>
+            </div>
+            <div class="streak-badge" id="streak-badge">
+              <i class="fas fa-fire"></i>
+              <span id="streak-count">0</span>
+              <span class="streak-label">day streak</span>
+            </div>
+          </div>
+
+          <!-- Quick Mood -->
+          <div class="card glass-card mood-quick-card" id="mood-quick-card">
+            <h3>Quick mood check</h3>
+            <div class="mood-faces">
+              <button class="mood-face" data-mood="2" onclick="quickMood(2)">
+                <span class="mood-emoji">😢</span>
+                <span class="mood-label">Rough</span>
+              </button>
+              <button class="mood-face" data-mood="4" onclick="quickMood(4)">
+                <span class="mood-emoji">😔</span>
+                <span class="mood-label">Low</span>
+              </button>
+              <button class="mood-face" data-mood="6" onclick="quickMood(6)">
+                <span class="mood-emoji">😌</span>
+                <span class="mood-label">Okay</span>
+              </button>
+              <button class="mood-face" data-mood="8" onclick="quickMood(8)">
+                <span class="mood-emoji">😊</span>
+                <span class="mood-label">Good</span>
+              </button>
+              <button class="mood-face" data-mood="10" onclick="quickMood(10)">
+                <span class="mood-emoji">🤩</span>
+                <span class="mood-label">Amazing</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Companion Card -->
+          <div class="card glass-card companion-dashboard-card" onclick="showView('companion')">
+            <div class="companion-mini">
+              <div class="companion-mini-avatar" id="dashboard-companion-avatar"></div>
+              <div class="companion-mini-info">
+                <h3 id="dashboard-companion-name">Your Companion</h3>
+                <p id="dashboard-companion-greeting" class="companion-mini-msg"></p>
+              </div>
+              <i class="fas fa-chevron-right"></i>
+            </div>
+          </div>
+
+          <!-- Today's Habits -->
+          <div class="card glass-card">
+            <div class="card-header">
+              <h3><i class="fas fa-seedling"></i> Today's Habits</h3>
+              <span class="habit-progress" id="dashboard-habit-progress">0/0</span>
+            </div>
+            <div id="dashboard-habits-list" class="dashboard-habits-list">
+              <p class="empty-state">Add your first habit to get started!</p>
+            </div>
+          </div>
+
+          <!-- Daily Challenge Card -->
+          <div class="card glass-card" id="dashboard-challenge-card">
+            <div class="card-header">
+              <h3><i class="fas fa-bolt"></i> Today's Challenge</h3>
+              <button class="btn-text" onclick="showView('challenges')">See all</button>
+            </div>
+            <div id="dashboard-challenge-content"></div>
+          </div>
+
+          <!-- Mood Chart -->
+          <div class="card glass-card">
+            <div class="card-header">
+              <h3><i class="fas fa-chart-line"></i> Your Week</h3>
+              <button class="btn-text" onclick="showView('weekly-report')"><i class="fas fa-chart-pie"></i> Full Report</button>
+            </div>
+            <div class="mood-chart-container">
+              <canvas id="mood-chart" width="400" height="160"></canvas>
+            </div>
+          </div>
+
+          <!-- Ambient Sounds Control -->
+          <div class="card glass-card ambient-sounds-card">
+            <div class="card-header">
+              <h3><i class="fas fa-headphones"></i> Ambient Sounds</h3>
+              <button class="ambient-toggle-btn" id="ambient-toggle-btn" onclick="toggleAmbientSounds()">
+                <i class="fas fa-play"></i>
+              </button>
+            </div>
+            <div class="ambient-profiles">
+              <button class="ambient-profile-btn active" data-profile="calm" onclick="switchAmbientProfile('calm', this)">
+                <span class="ambient-emoji">🕯️</span><span>Calm</span>
+              </button>
+              <button class="ambient-profile-btn" data-profile="rain" onclick="switchAmbientProfile('rain', this)">
+                <span class="ambient-emoji">🌧️</span><span>Rain</span>
+              </button>
+              <button class="ambient-profile-btn" data-profile="nature" onclick="switchAmbientProfile('nature', this)">
+                <span class="ambient-emoji">🌿</span><span>Nature</span>
+              </button>
+              <button class="ambient-profile-btn" data-profile="fireplace" onclick="switchAmbientProfile('fireplace', this)">
+                <span class="ambient-emoji">🔥</span><span>Fire</span>
+              </button>
+              <button class="ambient-profile-btn" data-profile="night" onclick="switchAmbientProfile('night', this)">
+                <span class="ambient-emoji">🦗</span><span>Night</span>
+              </button>
+              <button class="ambient-profile-btn" data-profile="ocean" onclick="switchAmbientProfile('ocean', this)">
+                <span class="ambient-emoji">🌊</span><span>Ocean</span>
+              </button>
+            </div>
+            <div class="ambient-volume-row">
+              <i class="fas fa-volume-low"></i>
+              <input type="range" id="ambient-volume" class="ambient-volume-slider" min="0" max="100" value="30" oninput="setAmbientVolume(this.value)">
+              <i class="fas fa-volume-high"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== COMPANION CHAT VIEW ===== -->
+      <div id="view-companion" class="view">
+        <div class="companion-view-layout">
+          <!-- 3D Avatar Area -->
+          <div class="avatar-section">
+            <div id="avatar-container" class="avatar-3d-container">
+              <canvas id="avatar-canvas"></canvas>
+            </div>
+            <div class="companion-name-plate">
+              <h2 id="chat-companion-name">Aria</h2>
+              <span id="chat-companion-persona" class="persona-tag">The Gentle Guide</span>
+              <div class="bond-meter">
+                <div class="bond-fill" id="bond-fill" style="width: 0%"></div>
+              </div>
+              <span class="bond-label">Bond Level</span>
+              <button class="btn-text lore-btn" onclick="openCompanionLore()" id="lore-btn">
+                <i class="fas fa-book-open"></i> Companion Story
+              </button>
+            </div>
+          </div>
+
+          <!-- Chat Area -->
+          <div class="chat-section">
+            <div id="chat-messages" class="chat-messages">
+              <div class="chat-welcome">
+                <p>Start a conversation with your companion...</p>
+              </div>
+            </div>
+            <div class="chat-input-area">
+              <div class="chat-input-wrapper">
+                <div id="voice-mic-container"></div>
+                <textarea id="chat-input" class="chat-input" placeholder="Share what's on your mind..." rows="1" onkeydown="handleChatKeydown(event)"></textarea>
+                <button class="chat-send-btn" onclick="sendMessage()" id="chat-send-btn">
+                  <i class="fas fa-paper-plane"></i>
+                </button>
+              </div>
+              <div id="voice-speaker-container" class="voice-speaker-row"></div>
+              <div class="chat-suggestions" id="chat-suggestions">
+                <button class="suggestion-chip" onclick="useSuggestion('How are you doing today?')">How are you?</button>
+                <button class="suggestion-chip" onclick="useSuggestion('I need someone to talk to')">Need to talk</button>
+                <button class="suggestion-chip" onclick="useSuggestion('Can you help me with a breathing exercise?')">Breathing exercise</button>
+                <button class="suggestion-chip" onclick="useSuggestion('I\'m feeling stressed out')">Feeling stressed</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== CHECK-IN VIEW ===== -->
+      <div id="view-checkin" class="view">
+        <div class="view-content checkin-content">
+          <div class="checkin-header">
+            <h2>How are you feeling?</h2>
+            <p>Take a moment to check in with yourself. There are no wrong answers.</p>
+          </div>
+
+          <div class="checkin-flow">
+            <!-- Mood Slider -->
+            <div class="checkin-section">
+              <label class="checkin-label">Overall mood</label>
+              <div class="mood-slider-container">
+                <input type="range" id="mood-slider" class="mood-slider" min="1" max="10" value="5" oninput="updateMoodDisplay(this.value)">
+                <div class="mood-slider-labels">
+                  <span>Struggling</span>
+                  <span id="mood-value-display" class="mood-value">5</span>
+                  <span>Thriving</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Energy Slider -->
+            <div class="checkin-section">
+              <label class="checkin-label">Energy level</label>
+              <div class="mood-slider-container">
+                <input type="range" id="energy-slider" class="mood-slider energy" min="1" max="10" value="5">
+                <div class="mood-slider-labels">
+                  <span>Depleted</span>
+                  <span>Energized</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Anxiety Slider -->
+            <div class="checkin-section">
+              <label class="checkin-label">Anxiety level</label>
+              <div class="mood-slider-container">
+                <input type="range" id="anxiety-slider" class="mood-slider anxiety" min="1" max="10" value="3">
+                <div class="mood-slider-labels">
+                  <span>Calm</span>
+                  <span>Anxious</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Emotions -->
+            <div class="checkin-section">
+              <label class="checkin-label">What emotions are present? <span class="optional">(select all that apply)</span></label>
+              <div class="emotion-chips" id="emotion-chips">
+                <button class="emotion-chip" data-emotion="happy" onclick="toggleEmotion(this)">😊 Happy</button>
+                <button class="emotion-chip" data-emotion="grateful" onclick="toggleEmotion(this)">🙏 Grateful</button>
+                <button class="emotion-chip" data-emotion="calm" onclick="toggleEmotion(this)">😌 Calm</button>
+                <button class="emotion-chip" data-emotion="hopeful" onclick="toggleEmotion(this)">🌟 Hopeful</button>
+                <button class="emotion-chip" data-emotion="loved" onclick="toggleEmotion(this)">💕 Loved</button>
+                <button class="emotion-chip" data-emotion="anxious" onclick="toggleEmotion(this)">😰 Anxious</button>
+                <button class="emotion-chip" data-emotion="sad" onclick="toggleEmotion(this)">😢 Sad</button>
+                <button class="emotion-chip" data-emotion="frustrated" onclick="toggleEmotion(this)">😤 Frustrated</button>
+                <button class="emotion-chip" data-emotion="lonely" onclick="toggleEmotion(this)">🥺 Lonely</button>
+                <button class="emotion-chip" data-emotion="overwhelmed" onclick="toggleEmotion(this)">😵 Overwhelmed</button>
+                <button class="emotion-chip" data-emotion="tired" onclick="toggleEmotion(this)">😴 Tired</button>
+                <button class="emotion-chip" data-emotion="motivated" onclick="toggleEmotion(this)">💪 Motivated</button>
+                <button class="emotion-chip" data-emotion="creative" onclick="toggleEmotion(this)">🎨 Creative</button>
+                <button class="emotion-chip" data-emotion="confused" onclick="toggleEmotion(this)">🤔 Confused</button>
+                <button class="emotion-chip" data-emotion="proud" onclick="toggleEmotion(this)">🏆 Proud</button>
+              </div>
+            </div>
+
+            <!-- Journal -->
+            <div class="checkin-section">
+              <label class="checkin-label">Anything you want to capture? <span class="optional">(optional)</span></label>
+              <textarea id="journal-entry" class="sanctuary-textarea" placeholder="Write freely — this is your safe space..." rows="4"></textarea>
+            </div>
+
+            <!-- Gratitude -->
+            <div class="checkin-section">
+              <label class="checkin-label">One thing you're grateful for <span class="optional">(optional)</span></label>
+              <input type="text" id="gratitude-input" class="sanctuary-input" placeholder="Even something small...">
+            </div>
+
+            <button class="btn-primary btn-large" onclick="submitCheckin()">
+              <i class="fas fa-heart"></i>
+              <span>Save Check-in</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== HABITS VIEW ===== -->
+      <div id="view-habits" class="view">
+        <div class="view-content">
+          <div class="habits-header">
+            <h2><i class="fas fa-seedling"></i> Your Habits</h2>
+            <button class="btn-secondary" onclick="showAddHabit()">
+              <i class="fas fa-plus"></i> Add Habit
+            </button>
+          </div>
+
+          <div id="habits-list" class="habits-list">
+            <p class="empty-state">
+              <i class="fas fa-leaf"></i>
+              <span>No habits yet. Start small — even one tiny habit can change everything.</span>
+            </p>
+          </div>
+
+          <!-- Add Habit Modal -->
+          <div id="add-habit-modal" class="modal hidden">
+            <div class="modal-overlay" onclick="closeAddHabit()"></div>
+            <div class="modal-content glass-card">
+              <div class="modal-header">
+                <h3>Plant a New Habit</h3>
+                <button class="modal-close" onclick="closeAddHabit()"><i class="fas fa-times"></i></button>
+              </div>
+              <div class="modal-body">
+                <div class="form-group">
+                  <label>Habit name</label>
+                  <input type="text" id="habit-title" class="sanctuary-input" placeholder="e.g., 5 minutes of meditation">
+                </div>
+                <div class="form-group">
+                  <label>Category</label>
+                  <div class="category-chips">
+                    <button class="category-chip active" data-category="mindfulness" onclick="selectCategory(this)">🧘 Mindfulness</button>
+                    <button class="category-chip" data-category="movement" onclick="selectCategory(this)">🏃 Movement</button>
+                    <button class="category-chip" data-category="sleep" onclick="selectCategory(this)">😴 Sleep</button>
+                    <button class="category-chip" data-category="nutrition" onclick="selectCategory(this)">🥗 Nutrition</button>
+                    <button class="category-chip" data-category="social" onclick="selectCategory(this)">💬 Social</button>
+                    <button class="category-chip" data-category="creativity" onclick="selectCategory(this)">🎨 Creativity</button>
+                    <button class="category-chip" data-category="growth" onclick="selectCategory(this)">📚 Growth</button>
+                    <button class="category-chip" data-category="self-care" onclick="selectCategory(this)">🧖 Self-care</button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Description <span class="optional">(optional)</span></label>
+                  <input type="text" id="habit-description" class="sanctuary-input" placeholder="Why this matters to you">
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Frequency</label>
+                    <select id="habit-frequency" class="sanctuary-select">
+                      <option value="daily">Daily</option>
+                      <option value="weekdays">Weekdays</option>
+                      <option value="3x-week">3x per week</option>
+                      <option value="weekly">Weekly</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Micro-habit?</label>
+                    <div class="toggle-container">
+                      <input type="checkbox" id="habit-micro" class="toggle-input">
+                      <label for="habit-micro" class="toggle-label">
+                        <span class="toggle-text">Under 2 min</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <button class="btn-primary btn-large" onclick="addHabit()">
+                  <i class="fas fa-seedling"></i>
+                  <span>Plant This Habit</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== REFLECT VIEW ===== -->
+      <div id="view-reflect" class="view">
+        <div class="view-content reflect-content">
+          <div class="reflect-header">
+            <h2><i class="fas fa-feather"></i> Daily Reflection</h2>
+          </div>
+
+          <div class="card glass-card reflect-card">
+            <div class="reflect-prompt">
+              <div class="prompt-icon"><i class="fas fa-quote-left"></i></div>
+              <p id="reflection-prompt" class="reflection-prompt-text">Loading your reflection prompt...</p>
+              <button class="btn-text" onclick="getNewPrompt()">
+                <i class="fas fa-shuffle"></i> Different prompt
+              </button>
+            </div>
+            <textarea id="reflection-response" class="sanctuary-textarea" placeholder="Let your thoughts flow..." rows="6"></textarea>
+            <button class="btn-primary" onclick="submitReflection()">
+              <i class="fas fa-feather"></i>
+              <span>Save Reflection</span>
+            </button>
+          </div>
+
+          <div class="past-reflections">
+            <h3>Past Reflections</h3>
+            <div id="reflections-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== INSIGHTS VIEW ===== -->
+      <div id="view-insights" class="view">
+        <div class="view-content">
+          <div class="insights-header">
+            <h2><i class="fas fa-chart-line"></i> Your Journey</h2>
+          </div>
+
+          <div class="insights-grid">
+            <div class="card glass-card insight-card">
+              <div class="insight-icon"><i class="fas fa-fire"></i></div>
+              <div class="insight-value" id="insight-streak">0</div>
+              <div class="insight-label">Day Streak</div>
+            </div>
+            <div class="card glass-card insight-card">
+              <div class="insight-icon"><i class="fas fa-heart"></i></div>
+              <div class="insight-value" id="insight-avg-mood">--</div>
+              <div class="insight-label">Avg Mood</div>
+            </div>
+            <div class="card glass-card insight-card">
+              <div class="insight-icon"><i class="fas fa-comments"></i></div>
+              <div class="insight-value" id="insight-conversations">0</div>
+              <div class="insight-label">Conversations</div>
+            </div>
+            <div class="card glass-card insight-card">
+              <div class="insight-icon"><i class="fas fa-check-circle"></i></div>
+              <div class="insight-value" id="insight-habits-done">0</div>
+              <div class="insight-label">Habits Done</div>
+            </div>
+          </div>
+
+          <div class="card glass-card">
+            <h3>Mood Trends (Last 30 Days)</h3>
+            <canvas id="insights-mood-chart" width="600" height="250"></canvas>
+          </div>
+
+          <div class="card glass-card">
+            <h3>Top Emotions</h3>
+            <div id="top-emotions-display" class="top-emotions"></div>
+          </div>
+
+          <div class="card glass-card">
+            <h3>Mood Trend</h3>
+            <div id="mood-trend-display" class="mood-trend"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== EXERCISES VIEW ===== -->
+      <div id="view-exercises" class="view">
+        <div class="view-content">
+          <div class="exercises-header">
+            <h2><i class="fas fa-spa"></i> Guided Exercises</h2>
+            <p>Take a moment to ground yourself with these calming exercises.</p>
+          </div>
+
+          <div class="exercises-grid">
+            <div class="card glass-card exercise-card" onclick="openExercise('box-breathing')">
+              <div class="exercise-icon">🫁</div>
+              <h3>Box Breathing</h3>
+              <p>4-4-4-4 breathing pattern to calm your nervous system</p>
+              <span class="exercise-duration">~4 min</span>
+            </div>
+
+            <div class="card glass-card exercise-card" onclick="openExercise('478-breathing')">
+              <div class="exercise-icon">🌬️</div>
+              <h3>4-7-8 Breathing</h3>
+              <p>Deep relaxation technique for anxiety and sleep</p>
+              <span class="exercise-duration">~5 min</span>
+            </div>
+
+            <div class="card glass-card exercise-card" onclick="openExercise('grounding')">
+              <div class="exercise-icon">🌍</div>
+              <h3>5-4-3-2-1 Grounding</h3>
+              <p>Sensory awareness exercise to anchor you to the present</p>
+              <span class="exercise-duration">~3 min</span>
+            </div>
+
+            <div class="card glass-card exercise-card" onclick="openExercise('body-scan')">
+              <div class="exercise-icon">🧘</div>
+              <h3>Body Scan</h3>
+              <p>Progressive relaxation through each body zone</p>
+              <span class="exercise-duration">~8 min</span>
+            </div>
+
+            <div class="card glass-card exercise-card" onclick="openExercise('meditation')">
+              <div class="exercise-icon">🔔</div>
+              <h3>Meditation Timer</h3>
+              <p>Timed meditation with gentle bell intervals</p>
+              <span class="exercise-duration">2-20 min</span>
+            </div>
+
+            <div class="card glass-card exercise-card" onclick="openExercise('muscle-relaxation')">
+              <div class="exercise-icon">💪</div>
+              <h3>Muscle Relaxation</h3>
+              <p>Tense and release each muscle group for deep calm</p>
+              <span class="exercise-duration">~12 min</span>
+            </div>
+
+            <div class="card glass-card exercise-card" onclick="openExercise('sleep-story')">
+              <div class="exercise-icon">🌙</div>
+              <h3>Sleep Stories</h3>
+              <p>Calming narratives to guide you into restful sleep</p>
+              <span class="exercise-duration">~10 min</span>
+            </div>
+          </div>
+
+          <div class="card glass-card" style="margin-top: 16px;">
+            <div class="card-header">
+              <h3><i class="fas fa-chart-bar"></i> Exercise Stats</h3>
+            </div>
+            <div id="exercise-stats-content">
+              <p class="empty-state">Complete your first exercise to see stats here!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ACHIEVEMENTS VIEW ===== -->
+      <div id="view-achievements" class="view">
+        <div class="view-content">
+          <div class="achievements-header">
+            <h2><i class="fas fa-trophy"></i> Achievements</h2>
+            <div class="achievement-progress-bar">
+              <div class="achievement-progress-fill" id="achievement-progress-fill"></div>
+            </div>
+            <p id="achievement-progress-text">0% Complete</p>
+          </div>
+
+          <div id="achievements-grid" class="achievements-grid">
+            <p class="empty-state">Loading achievements...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== COMPANIONS GALLERY VIEW ===== -->
+      <div id="view-companions-gallery" class="view">
+        <div class="view-content">
+          <div class="gallery-header">
+            <h2><i class="fas fa-users"></i> Your Companions</h2>
+            <p>Each companion brings a unique personality and approach to your wellness journey.</p>
+          </div>
+          <div id="companions-gallery-grid" class="companions-gallery-grid"></div>
+        </div>
+      </div>
+
+      <!-- ===== SETTINGS VIEW ===== -->
+      <div id="view-settings" class="view">
+        <div class="view-content">
+          <h2><i class="fas fa-gear"></i> Settings</h2>
+
+          <!-- AI Integration -->
+          <div class="card glass-card settings-section">
+            <h3><i class="fas fa-brain"></i> AI Integration</h3>
+            <p class="settings-desc">Connect a Claude API key for truly dynamic, context-aware conversations. Your companions will give personalized responses powered by real AI.</p>
+            <div class="form-group">
+              <label>Claude API Key</label>
+              <div class="api-key-row">
+                <input type="password" id="api-key-input" class="sanctuary-input" placeholder="sk-ant-..." autocomplete="off">
+                <button class="btn-secondary" onclick="saveApiKey()">
+                  <i class="fas fa-key"></i> Save
+                </button>
+              </div>
+              <p class="settings-hint" id="api-key-status">No API key configured — using built-in responses</p>
+            </div>
+          </div>
+
+          <!-- Voice Settings -->
+          <div class="card glass-card settings-section">
+            <h3><i class="fas fa-microphone"></i> Voice Interaction</h3>
+            <p class="settings-desc">Talk to your companion using your voice, and hear them speak back to you.</p>
+            <div class="settings-toggles">
+              <div class="pref-item">
+                <div class="pref-info">
+                  <h4>Voice Input</h4>
+                  <p>Use your microphone to speak to companions</p>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="setting-voice-enabled" onchange="toggleVoice(this.checked)">
+                  <span class="switch-slider"></span>
+                </label>
+              </div>
+              <div class="pref-item">
+                <div class="pref-info">
+                  <h4>Auto-Speak Responses</h4>
+                  <p>Companions read their responses aloud</p>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="setting-auto-speak" onchange="toggleAutoSpeak(this.checked)">
+                  <span class="switch-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notifications -->
+          <div class="card glass-card settings-section">
+            <h3><i class="fas fa-bell"></i> Notifications & Reminders</h3>
+            <p class="settings-desc">Gentle reminders to keep your wellness journey on track.</p>
+            <div id="notification-prefs-container">
+              <button class="btn-secondary" onclick="enableNotifications()">
+                <i class="fas fa-bell"></i> Enable Notifications
+              </button>
+            </div>
+          </div>
+
+          <!-- Appearance -->
+          <div class="card glass-card settings-section">
+            <h3><i class="fas fa-palette"></i> Appearance</h3>
+            <div class="theme-options">
+              <button class="theme-btn active" data-theme="sanctuary" onclick="setTheme('sanctuary')">
+                <div class="theme-preview sanctuary-preview"></div>
+                <span>Sanctuary</span>
+              </button>
+              <button class="theme-btn" data-theme="ocean" onclick="setTheme('ocean')">
+                <div class="theme-preview ocean-preview"></div>
+                <span>Ocean</span>
+              </button>
+              <button class="theme-btn" data-theme="forest" onclick="setTheme('forest')">
+                <div class="theme-preview forest-preview"></div>
+                <span>Forest</span>
+              </button>
+              <button class="theme-btn" data-theme="twilight" onclick="setTheme('twilight')">
+                <div class="theme-preview twilight-preview"></div>
+                <span>Twilight</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Privacy -->
+          <div class="card glass-card settings-section">
+            <h3><i class="fas fa-shield-halved"></i> Privacy & Data</h3>
+            <p class="settings-desc">Your data never leaves this device. You're in complete control.</p>
+            <div class="settings-actions">
+              <button class="btn-secondary" onclick="exportData()">
+                <i class="fas fa-download"></i> Export My Data
+              </button>
+              <button class="btn-danger" onclick="confirmDeleteData()">
+                <i class="fas fa-trash"></i> Delete All Data
+              </button>
+            </div>
+          </div>
+
+          <!-- Mobile App -->
+          <div class="card glass-card settings-section">
+            <h3><i class="fas fa-mobile-screen"></i> Mobile App</h3>
+            <p class="settings-desc">Install Serenity as an app on your phone for the full experience with push notifications.</p>
+            <button class="btn-secondary" id="install-pwa-btn" onclick="installPWA()" style="display:none">
+              <i class="fas fa-download"></i> Install App
+            </button>
+            <p class="settings-hint" id="install-hint">On mobile, tap "Add to Home Screen" in your browser menu to install.</p>
+          </div>
+
+          <!-- About -->
+          <div class="card glass-card settings-section">
+            <h3><i class="fas fa-info-circle"></i> About Serenity</h3>
+            <p class="settings-desc">Serenity is designed to be your daily wellness sanctuary. It's not a replacement for professional mental health care — if you're in crisis, please reach out to a professional.</p>
+            <div class="crisis-resources">
+              <p><strong>Crisis Resources:</strong></p>
+              <p>988 Suicide & Crisis Lifeline: Call or text <strong>988</strong></p>
+              <p>Crisis Text Line: Text <strong>HOME</strong> to <strong>741741</strong></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== COMMUNITY VIEW ===== -->
+      <div id="view-community" class="view">
+        <div class="view-content">
+          <div class="community-header">
+            <h2><i class="fas fa-globe-americas"></i> Community Wall</h2>
+            <p>Anonymous encouragement from fellow travelers on this journey.</p>
+          </div>
+          <div id="community-share-form"></div>
+          <div class="community-filters">
+            <button class="filter-chip active" data-filter="all" onclick="filterCommunity('all', this)">All</button>
+            <button class="filter-chip" data-filter="gratitude" onclick="filterCommunity('gratitude', this)">Gratitude</button>
+            <button class="filter-chip" data-filter="wins" onclick="filterCommunity('wins', this)">Wins</button>
+            <button class="filter-chip" data-filter="reflections" onclick="filterCommunity('reflections', this)">Reflections</button>
+            <button class="filter-chip" data-filter="encouragement" onclick="filterCommunity('encouragement', this)">Encouragement</button>
+          </div>
+          <div id="community-feed"></div>
+        </div>
+      </div>
+
+      <!-- ===== DREAM JOURNAL VIEW ===== -->
+      <div id="view-dreams" class="view">
+        <div class="view-content">
+          <div class="dreams-header">
+            <h2><i class="fas fa-cloud-moon"></i> Dream Journal</h2>
+            <p>Capture and explore the landscapes of your sleeping mind.</p>
+          </div>
+          <div class="dreams-tabs">
+            <button class="dreams-tab active" onclick="showDreamTab('record', this)">Record Dream</button>
+            <button class="dreams-tab" onclick="showDreamTab('history', this)">Past Dreams</button>
+            <button class="dreams-tab" onclick="showDreamTab('insights', this)">Insights</button>
+          </div>
+          <div id="dream-tab-record" class="dream-tab-content active"></div>
+          <div id="dream-tab-history" class="dream-tab-content"></div>
+          <div id="dream-tab-insights" class="dream-tab-content"></div>
+        </div>
+      </div>
+
+      <!-- ===== WEEKLY REPORT VIEW ===== -->
+      <div id="view-weekly-report" class="view">
+        <div class="view-content">
+          <div class="report-header">
+            <h2><i class="fas fa-chart-pie"></i> Weekly Report</h2>
+          </div>
+          <div id="weekly-report-container"></div>
+        </div>
+      </div>
+
+      <!-- ===== DAILY CHALLENGE VIEW ===== -->
+      <div id="view-challenges" class="view">
+        <div class="view-content">
+          <div class="challenges-header">
+            <h2><i class="fas fa-bolt"></i> Daily Challenges</h2>
+            <p>Small acts that make a big difference.</p>
+          </div>
+          <div id="challenge-card-container"></div>
+          <div style="margin-top: 24px;">
+            <h3 style="margin-bottom: 16px; font-family: var(--font-display);">History</h3>
+            <div id="challenge-history-container"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SOS Floating Button -->
+      <div id="sos-floating-btn"></div>
+
+      <!-- Toast Notifications -->
+      <div id="toast-container"></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="/js/three-avatar.js"></script>
+  <script src="/js/voice.js"></script>
+  <script src="/js/exercises.js"></script>
+  <script src="/js/achievements.js"></script>
+  <script src="/js/notifications.js"></script>
+  <script src="/js/ambient-sounds.js"></script>
+  <script src="/js/companion-lore.js"></script>
+  <script src="/js/weekly-report.js"></script>
+  <script src="/js/community.js"></script>
+  <script src="/js/sos.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
