@@ -2,13 +2,43 @@ class AvatarRenderer {
   constructor() {
     this.scenes = {};
     this.animationFrames = {};
-    this.clock = new THREE.Clock();
+    this.clock = (typeof THREE !== 'undefined' && THREE.Clock) ? new THREE.Clock() : { getDelta: () => 0.016 };
+    this.loader = null;
+    this.dracoLoader = null;
+    this.threeAvailable = typeof THREE !== 'undefined';
+    if (this.threeAvailable) this._initLoaders();
   }
+
+  _initLoaders() {
+    if (typeof THREE.GLTFLoader !== 'undefined') {
+      this.loader = new THREE.GLTFLoader();
+      if (typeof THREE.DRACOLoader !== 'undefined') {
+        this.dracoLoader = new THREE.DRACOLoader();
+        this.dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/');
+        this.loader.setDRACOLoader(this.dracoLoader);
+      }
+    }
+  }
+
+  // Ready Player Me avatar URLs for each companion
+  static AVATAR_MODELS = {
+    aria: 'https://models.readyplayer.me/6489a35d9ae8b55e74f7b1a2.glb?morphTargets=ARKit&textureAtlas=1024',
+    kai: 'https://models.readyplayer.me/6489a4a09ae8b55e74f7b1b5.glb?morphTargets=ARKit&textureAtlas=1024',
+    luna: 'https://models.readyplayer.me/6489a5239ae8b55e74f7b1c8.glb?morphTargets=ARKit&textureAtlas=1024',
+    sage: 'https://models.readyplayer.me/6489a5a89ae8b55e74f7b1db.glb?morphTargets=ARKit&textureAtlas=1024',
+    nova: 'https://models.readyplayer.me/6489a6209ae8b55e74f7b1ee.glb?morphTargets=ARKit&textureAtlas=1024',
+    ember: 'https://models.readyplayer.me/6489a6989ae8b55e74f7b201.glb?morphTargets=ARKit&textureAtlas=1024'
+  };
 
   createAvatar(canvasOrContainer, config, options = {}) {
     const id = options.id || 'avatar-' + Date.now();
     const width = options.width || 280;
     const height = options.height || 320;
+
+    if (!this.threeAvailable) {
+      console.warn('Three.js not loaded, skipping avatar render');
+      return id;
+    }
 
     let canvas;
     if (canvasOrContainer instanceof HTMLCanvasElement) {
@@ -30,56 +60,84 @@ class AvatarRenderer {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     const scene = new THREE.Scene();
 
-    const camera = new THREE.PerspectiveCamera(35, width / height, 0.1, 100);
-    camera.position.set(0, 0.3, 3.2);
-    camera.lookAt(0, 0.2, 0);
+    const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 100);
+    camera.position.set(0, 1.55, 0.8);
+    camera.lookAt(0, 1.35, 0);
 
     this.setupLighting(scene, config);
-    const avatar = this.buildAvatar(scene, config);
+
+    this.scenes[id] = { renderer, scene, camera, avatar: null, mixer: null, config, time: 0, morphMeshes: [] };
+
+    this._loadGLBAvatar(id, scene, config, width, height);
+
     this.addParticleAura(scene, config);
-
-    this.scenes[id] = { renderer, scene, camera, avatar, config, time: 0 };
-
     this.animate(id);
     return id;
   }
 
-  setupLighting(scene, config) {
-    const ambient = new THREE.AmbientLight(0x404060, 0.6);
-    scene.add(ambient);
+  _loadGLBAvatar(id, scene, config, width, height) {
+    if (!this.loader) {
+      this._buildProceduralAvatar(id, scene, config);
+      return;
+    }
 
-    const keyLight = new THREE.DirectionalLight(0xffeedd, 0.8);
-    keyLight.position.set(2, 3, 3);
-    keyLight.castShadow = true;
-    scene.add(keyLight);
+    const companionName = (config.companionId || config.name || '').toLowerCase();
+    const glbUrl = AvatarRenderer.AVATAR_MODELS[companionName];
 
-    const fillLight = new THREE.DirectionalLight(0x8888cc, 0.3);
-    fillLight.position.set(-2, 1, 1);
-    scene.add(fillLight);
+    if (!glbUrl) {
+      this._buildProceduralAvatar(id, scene, config);
+      return;
+    }
 
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.2);
-    rimLight.position.set(0, 2, -3);
-    scene.add(rimLight);
+    this.loader.load(
+      glbUrl,
+      (gltf) => {
+        const data = this.scenes[id];
+        if (!data) return;
 
-    const auraColors = {
-      warm_golden: 0xFFD700,
-      deep_blue: 0x4169E1,
-      iridescent: 0xDA70D6,
-      silver_gold: 0xC0C0C0,
-      vibrant_fire: 0xFF6347,
-      warm_firelight: 0xFF8C00
-    };
+        const model = gltf.scene;
+        model.scale.set(1, 1, 1);
+        model.position.set(0, 0, 0);
 
-    const auraColor = auraColors[config.aura] || 0x7EB09B;
-    const auraLight = new THREE.PointLight(auraColor, 0.4, 5);
-    auraLight.position.set(0, 0, 1.5);
-    scene.add(auraLight);
+        model.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.morphTargetInfluences && child.morphTargetDictionary) {
+              data.morphMeshes.push(child);
+            }
+          }
+        });
+
+        scene.add(model);
+
+        if (gltf.animations && gltf.animations.length > 0) {
+          data.mixer = new THREE.AnimationMixer(model);
+          const clip = gltf.animations[0];
+          const action = data.mixer.clipAction(clip);
+          action.play();
+        }
+
+        data.avatar = { model, isGLB: true };
+        data.camera.position.set(0, 1.55, 0.8);
+        data.camera.lookAt(0, 1.35, 0);
+      },
+      undefined,
+      (error) => {
+        console.warn('GLB load failed, using procedural avatar:', error);
+        this._buildProceduralAvatar(id, scene, config);
+      }
+    );
   }
 
-  buildAvatar(scene, config) {
+  _buildProceduralAvatar(id, scene, config) {
+    const data = this.scenes[id];
+    if (!data) return;
+
     const group = new THREE.Group();
 
     const skinColor = new THREE.Color(config.skinTone || '#D4A574');
@@ -88,9 +146,7 @@ class AvatarRenderer {
     const accentColor = new THREE.Color(config.accentColor || '#7EB09B');
 
     const skinMaterial = new THREE.MeshStandardMaterial({
-      color: skinColor,
-      roughness: 0.6,
-      metalness: 0.05
+      color: skinColor, roughness: 0.6, metalness: 0.05
     });
 
     // Head
@@ -104,9 +160,7 @@ class AvatarRenderer {
     // Eyes
     const eyeWhite = new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.3 });
     const eyeColor = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(config.eyeColor || '#4A7C59'),
-      roughness: 0.2,
-      metalness: 0.1
+      color: new THREE.Color(config.eyeColor || '#4A7C59'), roughness: 0.2, metalness: 0.1
     });
     const pupilMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
 
@@ -137,66 +191,46 @@ class AvatarRenderer {
     });
 
     // Nose
-    const nose = new THREE.Mesh(
-      new THREE.SphereGeometry(0.035, 12, 12),
-      skinMaterial
-    );
+    const nose = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 12), skinMaterial);
     nose.position.set(0, 1.12, 0.38);
     nose.scale.set(0.8, 1.2, 0.8);
     group.add(nose);
 
     // Mouth
     const mouthMat = new THREE.MeshStandardMaterial({ color: 0xCC7777, roughness: 0.4 });
-    const mouth = new THREE.Mesh(
-      new THREE.TorusGeometry(0.06, 0.012, 8, 16, Math.PI),
-      mouthMat
-    );
+    const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 8, 16, Math.PI), mouthMat);
     mouth.position.set(0, 1.02, 0.34);
     mouth.rotation.x = Math.PI;
     mouth.rotation.z = Math.PI;
     group.add(mouth);
 
     // Neck
-    const neck = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.12, 0.15, 16),
-      skinMaterial
-    );
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.15, 16), skinMaterial);
     neck.position.y = 0.8;
     group.add(neck);
 
     // Torso
-    const torsoMat = new THREE.MeshStandardMaterial({
-      color: outfitColor,
-      roughness: 0.7,
-      metalness: 0.05
-    });
-
-    const torsoGeom = new THREE.CylinderGeometry(0.25, 0.22, 0.65, 16);
-    const torso = new THREE.Mesh(torsoGeom, torsoMat);
+    const torsoMat = new THREE.MeshStandardMaterial({ color: outfitColor, roughness: 0.7, metalness: 0.05 });
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.22, 0.65, 16), torsoMat);
     torso.position.y = 0.42;
     torso.castShadow = true;
     group.add(torso);
 
     // Shoulders
-    const shoulderGeom = new THREE.SphereGeometry(0.11, 16, 16);
     [-0.3, 0.3].forEach(x => {
-      const shoulder = new THREE.Mesh(shoulderGeom, torsoMat);
+      const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 16), torsoMat);
       shoulder.position.set(x, 0.68, 0);
       group.add(shoulder);
     });
 
     // Arms
-    const armGeom = new THREE.CylinderGeometry(0.06, 0.055, 0.45, 12);
-    [-0.32, 0.32].forEach((x, i) => {
-      const arm = new THREE.Mesh(armGeom, torsoMat);
+    [-0.32, 0.32].forEach(x => {
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.055, 0.45, 12), torsoMat);
       arm.position.set(x, 0.4, 0.02);
       arm.rotation.z = x > 0 ? -0.15 : 0.15;
       group.add(arm);
 
-      const hand = new THREE.Mesh(
-        new THREE.SphereGeometry(0.055, 12, 12),
-        skinMaterial
-      );
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 12), skinMaterial);
       hand.position.set(x * 1.05, 0.16, 0.02);
       group.add(hand);
     });
@@ -212,21 +246,46 @@ class AvatarRenderer {
     group.position.y = -0.5;
     scene.add(group);
 
-    return {
-      group,
-      head,
-      mouth,
+    data.avatar = {
+      group, head, mouth, isGLB: false,
       eyes: group.children.filter(c => c.material === eyeColor),
       pupils: group.children.filter(c => c.material === pupilMat)
     };
+
+    data.camera.position.set(0, 0.3, 3.2);
+    data.camera.lookAt(0, 0.2, 0);
+  }
+
+  setupLighting(scene, config) {
+    const ambient = new THREE.AmbientLight(0x404060, 0.6);
+    scene.add(ambient);
+
+    const keyLight = new THREE.DirectionalLight(0xffeedd, 1.0);
+    keyLight.position.set(2, 3, 3);
+    keyLight.castShadow = true;
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0x8888cc, 0.4);
+    fillLight.position.set(-2, 1, 1);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.3);
+    rimLight.position.set(0, 2, -3);
+    scene.add(rimLight);
+
+    const auraColors = {
+      warm_golden: 0xFFD700, deep_blue: 0x4169E1, iridescent: 0xDA70D6,
+      silver_gold: 0xC0C0C0, vibrant_fire: 0xFF6347, warm_firelight: 0xFF8C00
+    };
+
+    const auraColor = auraColors[config.aura] || 0x7EB09B;
+    const auraLight = new THREE.PointLight(auraColor, 0.5, 5);
+    auraLight.position.set(0, 1.2, 1.5);
+    scene.add(auraLight);
   }
 
   addHair(group, config, hairColor) {
-    const hairMat = new THREE.MeshStandardMaterial({
-      color: hairColor,
-      roughness: 0.8,
-      metalness: 0.05
-    });
+    const hairMat = new THREE.MeshStandardMaterial({ color: hairColor, roughness: 0.8, metalness: 0.05 });
 
     switch (config.hairStyle) {
       case 'flowing': {
@@ -234,12 +293,8 @@ class AvatarRenderer {
         mainHair.position.set(0, 1.22, -0.02);
         mainHair.scale.set(1, 1.05, 1);
         group.add(mainHair);
-
         for (let i = 0; i < 6; i++) {
-          const strand = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.08 - i * 0.005, 0.04, 0.5 + i * 0.06, 8),
-            hairMat
-          );
+          const strand = new THREE.Mesh(new THREE.CylinderGeometry(0.08 - i * 0.005, 0.04, 0.5 + i * 0.06, 8), hairMat);
           const angle = (i / 6) * Math.PI - Math.PI * 0.5;
           strand.position.set(Math.sin(angle) * 0.3, 0.85 - i * 0.04, Math.cos(angle) * 0.1 - 0.1);
           strand.rotation.z = Math.sin(angle) * 0.2;
@@ -259,12 +314,8 @@ class AvatarRenderer {
         mainHair.position.set(0, 1.23, -0.02);
         mainHair.scale.set(1.05, 1.05, 1);
         group.add(mainHair);
-
         for (let i = 0; i < 8; i++) {
-          const strand = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.07 - i * 0.003, 0.03, 0.6 + i * 0.05, 8),
-            hairMat
-          );
+          const strand = new THREE.Mesh(new THREE.CylinderGeometry(0.07 - i * 0.003, 0.03, 0.6 + i * 0.05, 8), hairMat);
           const angle = (i / 8) * Math.PI * 1.4 - Math.PI * 0.7;
           strand.position.set(Math.sin(angle) * 0.32, 0.8 - i * 0.03, Math.cos(angle) * 0.08 - 0.08);
           strand.rotation.z = Math.sin(angle) * 0.3;
@@ -278,7 +329,6 @@ class AvatarRenderer {
         elegantHair.position.set(0, 1.24, -0.01);
         elegantHair.scale.set(1.03, 1.02, 1.01);
         group.add(elegantHair);
-
         const sideSwoop = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), hairMat);
         sideSwoop.position.set(0.2, 1.35, 0.2);
         group.add(sideSwoop);
@@ -289,16 +339,11 @@ class AvatarRenderer {
         bigHair.position.set(0, 1.28, 0);
         bigHair.scale.set(1.1, 1.1, 1.05);
         group.add(bigHair);
-
         for (let i = 0; i < 12; i++) {
           const curl = new THREE.Mesh(new THREE.SphereGeometry(0.08 + Math.random() * 0.04, 12, 12), hairMat);
           const angle = (i / 12) * Math.PI * 2;
           const radius = 0.35 + Math.random() * 0.1;
-          curl.position.set(
-            Math.sin(angle) * radius,
-            1.25 + Math.random() * 0.2,
-            Math.cos(angle) * radius * 0.8
-          );
+          curl.position.set(Math.sin(angle) * radius, 1.25 + Math.random() * 0.2, Math.cos(angle) * radius * 0.8);
           group.add(curl);
         }
         break;
@@ -307,18 +352,12 @@ class AvatarRenderer {
         const baseHair = new THREE.Mesh(new THREE.SphereGeometry(0.4, 24, 24), hairMat);
         baseHair.position.set(0, 1.22, -0.02);
         group.add(baseHair);
-
         const bun = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), hairMat);
         bun.position.set(0, 1.55, -0.1);
         group.add(bun);
-
         for (let i = 0; i < 5; i++) {
           const wisp = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.005, 0.15, 6), hairMat);
-          wisp.position.set(
-            (Math.random() - 0.5) * 0.3,
-            1.1 + Math.random() * 0.1,
-            0.3 + Math.random() * 0.05
-          );
+          wisp.position.set((Math.random() - 0.5) * 0.3, 1.1 + Math.random() * 0.1, 0.3 + Math.random() * 0.05);
           wisp.rotation.z = (Math.random() - 0.5) * 0.5;
           group.add(wisp);
         }
@@ -333,11 +372,7 @@ class AvatarRenderer {
   }
 
   addAccessories(group, config, accentColor) {
-    const accentMat = new THREE.MeshStandardMaterial({
-      color: accentColor,
-      roughness: 0.3,
-      metalness: 0.4
-    });
+    const accentMat = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.3, metalness: 0.4 });
 
     if (config.accessories.includes('crystal_pendant')) {
       const pendant = new THREE.Mesh(
@@ -347,7 +382,6 @@ class AvatarRenderer {
       pendant.position.set(0, 0.7, 0.22);
       group.add(pendant);
     }
-
     if (config.accessories.includes('mala_beads')) {
       for (let i = 0; i < 12; i++) {
         const bead = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 8), accentMat);
@@ -356,18 +390,14 @@ class AvatarRenderer {
         group.add(bead);
       }
     }
-
     if (config.accessories.includes('star_earrings')) {
       [-0.35, 0.35].forEach(x => {
-        const earring = new THREE.Mesh(
-          new THREE.OctahedronGeometry(0.025),
-          new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.1, metalness: 0.8 })
-        );
+        const earring = new THREE.Mesh(new THREE.OctahedronGeometry(0.025),
+          new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.1, metalness: 0.8 }));
         earring.position.set(x, 1.1, 0.15);
         group.add(earring);
       });
     }
-
     if (config.accessories.includes('reading_glasses')) {
       const glassMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.3, metalness: 0.6 });
       [-0.13, 0.13].forEach(x => {
@@ -380,35 +410,23 @@ class AvatarRenderer {
       bridge.rotation.z = Math.PI / 2;
       group.add(bridge);
     }
-
     if (config.accessories.includes('smart_watch')) {
-      const watch = new THREE.Mesh(
-        new THREE.BoxGeometry(0.05, 0.06, 0.02),
-        new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.2, metalness: 0.8 })
-      );
+      const watch = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, 0.02),
+        new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.2, metalness: 0.8 }));
       watch.position.set(-0.34, 0.2, 0.04);
       group.add(watch);
     }
-
     if (config.accessories.includes('headband')) {
-      const headband = new THREE.Mesh(
-        new THREE.TorusGeometry(0.38, 0.015, 8, 32, Math.PI),
-        new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.4, metalness: 0.3 })
-      );
+      const headband = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.015, 8, 32, Math.PI),
+        new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.4, metalness: 0.3 }));
       headband.position.set(0, 1.35, 0);
       headband.rotation.x = -0.2;
       group.add(headband);
     }
-
     if (config.accessories.includes('flower_crown')) {
       for (let i = 0; i < 7; i++) {
-        const flower = new THREE.Mesh(
-          new THREE.SphereGeometry(0.025, 8, 8),
-          new THREE.MeshStandardMaterial({
-            color: [0xFF69B4, 0xFFB347, 0xFF6B6B, 0xDDA0DD, 0xFFA07A][i % 5],
-            roughness: 0.5
-          })
-        );
+        const flower = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 8),
+          new THREE.MeshStandardMaterial({ color: [0xFF69B4, 0xFFB347, 0xFF6B6B, 0xDDA0DD, 0xFFA07A][i % 5], roughness: 0.5 }));
         const angle = (i / 7) * Math.PI + Math.PI * 0.15;
         flower.position.set(Math.sin(angle) * 0.38, 1.42, Math.cos(angle) * 0.2);
         group.add(flower);
@@ -418,12 +436,8 @@ class AvatarRenderer {
 
   addParticleAura(scene, config) {
     const auraColors = {
-      warm_golden: 0xFFD700,
-      deep_blue: 0x4169E1,
-      iridescent: 0xDA70D6,
-      silver_gold: 0xC0C0C0,
-      vibrant_fire: 0xFF6347,
-      warm_firelight: 0xFF8C00
+      warm_golden: 0xFFD700, deep_blue: 0x4169E1, iridescent: 0xDA70D6,
+      silver_gold: 0xC0C0C0, vibrant_fire: 0xFF6347, warm_firelight: 0xFF8C00
     };
 
     const color = auraColors[config.aura] || 0x7EB09B;
@@ -434,7 +448,7 @@ class AvatarRenderer {
       const angle = Math.random() * Math.PI * 2;
       const radius = 0.6 + Math.random() * 0.8;
       positions[i * 3] = Math.sin(angle) * radius;
-      positions[i * 3 + 1] = (Math.random() - 0.3) * 2;
+      positions[i * 3 + 1] = (Math.random() - 0.3) * 2 + 0.8;
       positions[i * 3 + 2] = Math.cos(angle) * radius * 0.5;
     }
 
@@ -442,12 +456,8 @@ class AvatarRenderer {
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
     const material = new THREE.PointsMaterial({
-      color,
-      size: 0.03,
-      transparent: true,
-      opacity: 0.4,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
+      color, size: 0.03, transparent: true, opacity: 0.4,
+      blending: THREE.AdditiveBlending, depthWrite: false
     });
 
     const particles = new THREE.Points(geometry, material);
@@ -461,36 +471,51 @@ class AvatarRenderer {
 
     const tick = () => {
       if (!this.scenes[id]) return;
+      const delta = this.clock.getDelta();
       data.time += 0.016;
       this.animationFrames[id] = requestAnimationFrame(tick);
 
+      if (data.mixer) {
+        data.mixer.update(delta);
+      }
+
       const { avatar, scene } = data;
-      if (!avatar) return;
 
-      // Breathing animation
-      if (avatar.group) {
-        avatar.group.position.y = -0.5 + Math.sin(data.time * 1.5) * 0.008;
+      if (avatar && avatar.isGLB && avatar.model) {
+        // Subtle idle breathing for GLB models
+        avatar.model.position.y = Math.sin(data.time * 1.5) * 0.003;
+        avatar.model.rotation.y = Math.sin(data.time * 0.3) * 0.02;
+
+        // Blink via morph targets
+        if (data.morphMeshes.length > 0) {
+          const blinkCycle = data.time % 4;
+          const blinkValue = (blinkCycle > 3.85 && blinkCycle < 3.95) ? 1 : 0;
+          data.morphMeshes.forEach(mesh => {
+            const dict = mesh.morphTargetDictionary;
+            if (dict) {
+              if ('eyeBlinkLeft' in dict) mesh.morphTargetInfluences[dict.eyeBlinkLeft] = blinkValue;
+              if ('eyeBlinkRight' in dict) mesh.morphTargetInfluences[dict.eyeBlinkRight] = blinkValue;
+            }
+          });
+        }
+      } else if (avatar && !avatar.isGLB) {
+        // Procedural avatar animations
+        if (avatar.group) {
+          avatar.group.position.y = -0.5 + Math.sin(data.time * 1.5) * 0.008;
+        }
+        if (avatar.head) {
+          avatar.head.rotation.y = Math.sin(data.time * 0.5) * 0.03;
+          avatar.head.rotation.x = Math.sin(data.time * 0.3) * 0.015;
+        }
+        if (avatar.eyes) {
+          const blinkCycle = data.time % 4;
+          const blinkScale = (blinkCycle > 3.85 && blinkCycle < 3.95) ? 0.1 : 0.75;
+          avatar.eyes.forEach(eye => { eye.scale.y = blinkScale; });
+          avatar.pupils.forEach(pupil => { pupil.scale.y = blinkScale; });
+        }
       }
 
-      // Subtle head movement
-      if (avatar.head) {
-        avatar.head.rotation.y = Math.sin(data.time * 0.5) * 0.03;
-        avatar.head.rotation.x = Math.sin(data.time * 0.3) * 0.015;
-      }
-
-      // Blink animation
-      if (avatar.eyes) {
-        const blinkCycle = data.time % 4;
-        const blinkScale = blinkCycle > 3.85 && blinkCycle < 3.95 ? 0.1 : 0.75;
-        avatar.eyes.forEach(eye => {
-          eye.scale.y = blinkScale;
-        });
-        avatar.pupils.forEach(pupil => {
-          pupil.scale.y = blinkScale;
-        });
-      }
-
-      // Aura particles float
+      // Aura particles
       scene.children.forEach(child => {
         if (child.userData.isAura) {
           child.rotation.y += 0.003;
@@ -512,30 +537,56 @@ class AvatarRenderer {
     const data = this.scenes[id];
     if (!data || !data.avatar) return;
 
-    // Expressions modify mouth and eyebrow positions
-    const { mouth, head } = data.avatar;
-    if (!mouth) return;
+    if (data.avatar.isGLB && data.morphMeshes.length > 0) {
+      // GLB morph target expressions
+      const morphMap = {
+        happy: { mouthSmileLeft: 0.7, mouthSmileRight: 0.7, cheekSquintLeft: 0.3, cheekSquintRight: 0.3 },
+        compassionate: { mouthSmileLeft: 0.3, mouthSmileRight: 0.3, browInnerUp: 0.3 },
+        calm_reassuring: { mouthSmileLeft: 0.4, mouthSmileRight: 0.4 },
+        understanding: { browInnerUp: 0.4, mouthSmileLeft: 0.2, mouthSmileRight: 0.2 },
+        encouraging: { mouthSmileLeft: 0.6, mouthSmileRight: 0.6, cheekSquintLeft: 0.2, cheekSquintRight: 0.2 }
+      };
 
-    switch (expression) {
-      case 'happy':
-        mouth.scale.set(1.2, 1.2, 1);
-        mouth.rotation.x = Math.PI;
-        break;
-      case 'compassionate':
-        mouth.scale.set(0.9, 0.8, 1);
-        break;
-      case 'calm_reassuring':
-        mouth.scale.set(1, 0.9, 1);
-        break;
-      case 'understanding':
-        mouth.scale.set(0.95, 0.85, 1);
-        if (head) head.rotation.x = 0.05;
-        break;
-      case 'encouraging':
-        mouth.scale.set(1.1, 1.1, 1);
-        break;
-      default:
-        mouth.scale.set(1, 1, 1);
+      const targets = morphMap[expression] || {};
+      data.morphMeshes.forEach(mesh => {
+        const dict = mesh.morphTargetDictionary;
+        if (!dict) return;
+        // Reset all expression morphs
+        Object.keys(dict).forEach(key => {
+          if (key.startsWith('mouth') || key.startsWith('cheek') || key.startsWith('brow')) {
+            mesh.morphTargetInfluences[dict[key]] = 0;
+          }
+        });
+        // Apply new expression
+        Object.entries(targets).forEach(([key, value]) => {
+          if (key in dict) mesh.morphTargetInfluences[dict[key]] = value;
+        });
+      });
+    } else if (data.avatar && !data.avatar.isGLB) {
+      // Procedural expressions
+      const { mouth, head } = data.avatar;
+      if (!mouth) return;
+      switch (expression) {
+        case 'happy':
+          mouth.scale.set(1.2, 1.2, 1);
+          mouth.rotation.x = Math.PI;
+          break;
+        case 'compassionate':
+          mouth.scale.set(0.9, 0.8, 1);
+          break;
+        case 'calm_reassuring':
+          mouth.scale.set(1, 0.9, 1);
+          break;
+        case 'understanding':
+          mouth.scale.set(0.95, 0.85, 1);
+          if (head) head.rotation.x = 0.05;
+          break;
+        case 'encouraging':
+          mouth.scale.set(1.1, 1.1, 1);
+          break;
+        default:
+          mouth.scale.set(1, 1, 1);
+      }
     }
   }
 
@@ -545,7 +596,19 @@ class AvatarRenderer {
       delete this.animationFrames[id];
     }
     if (this.scenes[id]) {
-      this.scenes[id].renderer.dispose();
+      const data = this.scenes[id];
+      if (data.mixer) data.mixer.stopAllAction();
+      data.renderer.dispose();
+      data.scene.traverse((child) => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach(m => m.dispose());
+          } else {
+            child.material.dispose();
+          }
+        }
+      });
       delete this.scenes[id];
     }
   }

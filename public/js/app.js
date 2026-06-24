@@ -22,7 +22,7 @@ let currentCommunityFilter = 'all';
 // ==================== INITIALIZATION ====================
 
 document.addEventListener('DOMContentLoaded', () => {
-  avatarRenderer = new AvatarRenderer();
+  try { avatarRenderer = new AvatarRenderer(); } catch (e) { avatarRenderer = { createAvatar: () => null, setExpression: () => {}, destroy: () => {} }; }
   initParticles();
 
   // Initialize subsystems
@@ -67,7 +67,7 @@ async function initApp() {
   await loadCompanions();
   updateGreeting();
   loadDashboard();
-  loadUserSettings();
+  await loadUserSettings();
   initVoiceControls();
 
   // Initialize companion memory
@@ -81,6 +81,13 @@ async function initApp() {
 
   // Check achievements periodically
   checkAchievements();
+}
+
+async function loadCompanions() {
+  try {
+    const res = await fetch(`${API}/companions`);
+    companions = await res.json();
+  } catch (e) {}
 }
 
 async function loadUserSettings() {
@@ -145,6 +152,15 @@ function initVoiceControls() {
   if (speakerContainer && window.VoiceUI) {
     const toggle = VoiceUI.createSpeakerToggle();
     speakerContainer.appendChild(toggle);
+    const checkbox = toggle.querySelector('input[type="checkbox"]');
+    if (checkbox) {
+      checkbox.checked = !!userSettings.auto_speak;
+      checkbox.addEventListener('change', () => {
+        userSettings.auto_speak = checkbox.checked;
+        const settingsToggle = document.getElementById('setting-auto-speak');
+        if (settingsToggle) settingsToggle.checked = checkbox.checked;
+      });
+    }
   }
 }
 
@@ -395,6 +411,8 @@ async function initCompanionView() {
   const config = typeof currentCompanion.avatar_config === 'string'
     ? JSON.parse(currentCompanion.avatar_config)
     : currentCompanion.avatar_config;
+  config.companionId = currentCompanion.id;
+  config.name = currentCompanion.name;
 
   if (mainAvatarId) avatarRenderer.destroy(mainAvatarId);
 
@@ -917,6 +935,8 @@ async function loadCompanionGallery() {
     // Render mini avatars
     userCompanions.forEach(c => {
       const config = typeof c.avatar_config === 'string' ? JSON.parse(c.avatar_config) : c.avatar_config;
+      config.companionId = c.id;
+      config.name = c.name;
       const container = document.getElementById(`gallery-avatar-${c.id}`);
       if (container) {
         try {
