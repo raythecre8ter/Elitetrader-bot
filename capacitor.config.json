@@ -1,6 +1,6 @@
 {
-  "appId": "com.serenity.wellness",
-  "appName": "Serenity",
+  "appId": "com.reverie.wellness",
+  "appName": "Reverie",
   "webDir": "public",
   "server": {
     "androidScheme": "https"
@@ -18,7 +18,7 @@
       "backgroundColor": "#0F0F1A"
     },
     "LocalNotifications": {
-      "smallIcon": "ic_stat_serenity",
+      "smallIcon": "ic_stat_reverie",
       "iconColor": "#7EB09B"
     },
     "Keyboard": {

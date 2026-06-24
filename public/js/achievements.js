@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  const STORAGE_KEY = 'serenity_achievements';
+  const STORAGE_KEY = 'reverie_achievements';
 
   // ==================== ACHIEVEMENT DEFINITIONS ====================
 

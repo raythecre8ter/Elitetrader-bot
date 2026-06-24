@@ -1,4 +1,4 @@
-const CACHE_NAME = 'serenity-v1';
+const CACHE_NAME = 'reverie-v1';
 const OFFLINE_URLS = [
   '/',
   '/css/styles.css',
@@ -93,12 +93,12 @@ self.addEventListener('push', (event) => {
     vibrate: [100, 50, 100],
     data: { action: data.action || 'dashboard' },
     actions: data.actions || [],
-    tag: data.tag || 'serenity-notification',
+    tag: data.tag || 'reverie-notification',
     renotify: true,
     silent: false
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Serenity', options)
+    self.registration.showNotification(data.title || 'Reverie', options)
   );
 });

@@ -1,4 +1,4 @@
-// Emergency SOS Mode - Serenity Mental Wellness App
+// Emergency SOS Mode - Reverie Mental Wellness App
 (function () {
   'use strict';
 
