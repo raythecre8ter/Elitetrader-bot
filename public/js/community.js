@@ -7,8 +7,8 @@
 
   // ==================== ANONYMOUS COMMUNITY WALL ====================
 
-  const COMMUNITY_KEY = 'serenity_community_posts';
-  const COMMUNITY_LIKES_KEY = 'serenity_community_likes';
+  const COMMUNITY_KEY = 'reverie_community_posts';
+  const COMMUNITY_LIKES_KEY = 'reverie_community_likes';
 
   const SEEDED_POSTS = [
     // --- Gratitude ---
@@ -261,7 +261,7 @@
 
   // ==================== DREAM JOURNAL ====================
 
-  var DREAMS_KEY = 'serenity_dreams';
+  var DREAMS_KEY = 'reverie_dreams';
 
   var DREAM_TAGS = ['vivid','peaceful','scary','weird','happy','sad','adventure','nostalgic','flying','falling','water','chasing'];
 

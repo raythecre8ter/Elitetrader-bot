@@ -40,13 +40,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sosContainer) sosContainer.innerHTML = SOSMode.renderSOSButton();
   }
 
-  const savedUser = localStorage.getItem('serenity_user');
+  const savedUser = localStorage.getItem('reverie_user');
   if (savedUser) {
     currentUser = JSON.parse(savedUser);
     initApp();
   }
 
-  const savedTheme = localStorage.getItem('serenity_theme');
+  const savedTheme = localStorage.getItem('reverie_theme');
   if (savedTheme) setTheme(savedTheme, false);
 
   // PWA install prompt
@@ -165,7 +165,7 @@ async function submitName() {
     });
     const data = await res.json();
     currentUser = data.user;
-    localStorage.setItem('serenity_user', JSON.stringify(currentUser));
+    localStorage.setItem('reverie_user', JSON.stringify(currentUser));
 
     document.getElementById('step-name').classList.add('hidden');
     document.getElementById('step-companion').classList.remove('hidden');
@@ -963,7 +963,7 @@ function setTheme(theme, save = true) {
   });
 
   if (save) {
-    localStorage.setItem('serenity_theme', theme);
+    localStorage.setItem('reverie_theme', theme);
     showToast('Theme updated', 'success');
   }
 }
@@ -978,7 +978,7 @@ async function exportData() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `serenity-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `reverie-export-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
 
@@ -999,8 +999,8 @@ function confirmDeleteData() {
 async function deleteAllData() {
   try {
     await fetch(`${API}/users/${currentUser.id}/data`, { method: 'DELETE' });
-    localStorage.removeItem('serenity_user');
-    localStorage.removeItem('serenity_theme');
+    localStorage.removeItem('reverie_user');
+    localStorage.removeItem('reverie_theme');
     currentUser = null;
     currentCompanion = null;
     window.location.reload();
@@ -1492,7 +1492,7 @@ async function installPWA() {
   deferredInstallPrompt.prompt();
   const result = await deferredInstallPrompt.userChoice;
   if (result.outcome === 'accepted') {
-    showToast('Serenity installed! Find it on your home screen.', 'success');
+    showToast('Reverie installed! Find it on your home screen.', 'success');
   }
   deferredInstallPrompt = null;
   document.getElementById('install-pwa-btn').style.display = 'none';

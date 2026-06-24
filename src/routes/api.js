@@ -477,7 +477,7 @@ router.get('/users/:id/export', (req, res) => {
   };
 
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Content-Disposition', `attachment; filename="serenity-export-${new Date().toISOString().split('T')[0]}.json"`);
+  res.setHeader('Content-Disposition', `attachment; filename="reverie-export-${new Date().toISOString().split('T')[0]}.json"`);
   res.json(data);
 });
 

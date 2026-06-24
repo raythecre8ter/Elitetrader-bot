@@ -607,7 +607,7 @@
         <div class="exercise-complete-icon">&#10024;</div>
         <h2 class="exercise-complete-heading">Exercise Complete</h2>
         <p class="exercise-complete-message">${msg}</p>
-        <button class="exercise-btn" onclick="closeExercise()">Return to Serenity</button>
+        <button class="exercise-btn" onclick="closeExercise()">Return to Reverie</button>
       </div>
     `;
     playBell();
@@ -1273,7 +1273,7 @@
 
     const exerciseFn = EXERCISES[type];
     if (!exerciseFn) {
-      console.warn(`[Serenity] Unknown exercise type: "${type}". Available: ${Object.keys(EXERCISES).join(', ')}`);
+      console.warn(`[Reverie] Unknown exercise type: "${type}". Available: ${Object.keys(EXERCISES).join(', ')}`);
       return;
     }
 

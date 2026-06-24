@@ -110,7 +110,7 @@
           'background:radial-gradient(circle,rgba(126,176,155,0.15),transparent 70%);"></div>' +
         '<div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;' +
           'background:radial-gradient(circle,rgba(155,142,196,0.12),transparent 70%);"></div>' +
-        '<div style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:rgba(240,237,232,0.4);margin-bottom:6px;">Serenity</div>' +
+        '<div style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:rgba(240,237,232,0.4);margin-bottom:6px;">Reverie</div>' +
         '<div style="font-family:Playfair Display,Georgia,serif;font-size:22px;font-weight:600;' +
           'background:linear-gradient(135deg,#7EB09B,#9B8EC4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;' +
           'background-clip:text;">Your Week at a Glance</div>' +
@@ -239,7 +239,7 @@
 
   // ==================== DAILY CHALLENGES ====================
 
-  var CHALLENGES_STORAGE = 'serenity_challenges';
+  var CHALLENGES_STORAGE = 'reverie_challenges';
 
   var CHALLENGE_POOL = [
     // Mindfulness (0-4)

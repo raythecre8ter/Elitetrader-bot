@@ -1,12 +1,12 @@
 {
-  "name": "serenity-ai-wellness",
+  "name": "reverie-ai-wellness",
   "version": "1.0.0",
   "description": "AI-powered mental wellness companion with adaptive 3D avatars and habit tracking",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "cap:init": "npx @capacitor/cli init Serenity com.serenity.wellness --web-dir public",
+    "cap:init": "npx @capacitor/cli init Reverie com.reverie.wellness --web-dir public",
     "cap:add:ios": "npx cap add ios",
     "cap:add:android": "npx cap add android",
     "cap:sync": "npx cap sync",

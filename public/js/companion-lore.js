@@ -204,7 +204,7 @@
 
   function CompanionMemory(userId) {
     this.userId = userId;
-    this.storageKey = 'serenity_memories_' + userId;
+    this.storageKey = 'reverie_memories_' + userId;
     this.memories = this._load();
   }
 
