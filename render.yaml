@@ -3,7 +3,8 @@ services:
     name: reverie-wellness
     runtime: node
     plan: free
-    buildCommand: npm install
+    nodeVersion: "20"
+    buildCommand: npm install --build-from-source
     startCommand: node server.js
     envVars:
       - key: NODE_ENV

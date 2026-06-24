@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "build": "npm install --build-from-source",
     "cap:init": "npx @capacitor/cli init Reverie com.reverie.wellness --web-dir public",
     "cap:add:ios": "npx cap add ios",
     "cap:add:android": "npx cap add android",
@@ -15,7 +16,7 @@
     "mobile:build": "npm run cap:sync"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "20.x"
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",
