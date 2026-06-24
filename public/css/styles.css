@@ -2095,8 +2095,8 @@ body {
 
 .crisis-resources {
   padding: 16px;
-  background: rgba(232, 168, 124, 0.08);
-  border: 1px solid rgba(232, 168, 124, 0.2);
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.18);
   border-radius: var(--radius-md);
   font-size: 0.88rem;
   line-height: 1.8;
@@ -2547,9 +2547,10 @@ body {
 }
 
 .ambient-toggle-btn.playing {
-  background: rgba(126, 176, 155, 0.2);
+  background: rgba(0, 212, 255, 0.12);
   border-color: var(--accent-primary);
   color: var(--accent-primary);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.15);
 }
 
 .ambient-profiles {
@@ -2581,7 +2582,7 @@ body {
 }
 
 .ambient-profile-btn.active {
-  background: rgba(126, 176, 155, 0.12);
+  background: rgba(0, 212, 255, 0.1);
   border-color: var(--accent-primary);
   color: var(--text-primary);
 }
