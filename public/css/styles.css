@@ -369,16 +369,19 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition-normal);
-  box-shadow: var(--shadow-md), 0 0 20px var(--accent-glow);
+  box-shadow: var(--shadow-md), 0 0 25px rgba(0, 212, 255, 0.2), 0 0 50px rgba(168, 85, 247, 0.1);
+  letter-spacing: 0.02em;
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-lg), 0 0 30px var(--accent-glow);
+  box-shadow: var(--shadow-lg), 0 0 35px rgba(0, 212, 255, 0.3), 0 0 60px rgba(168, 85, 247, 0.15);
+  filter: brightness(1.1);
 }
 
 .btn-primary:active {
   transform: translateY(0);
+  filter: brightness(0.95);
 }
 
 .btn-primary.btn-large {
@@ -408,6 +411,7 @@ body {
 .btn-secondary:hover {
   background: var(--bg-card-hover);
   border-color: var(--accent-primary);
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
 }
 
 .btn-text {
@@ -456,14 +460,16 @@ body {
 }
 
 .companion-card {
-  background: var(--bg-glass);
-  border: 1.5px solid var(--bg-glass-border);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
   padding: 20px;
   cursor: pointer;
   transition: var(--transition-normal);
   position: relative;
   overflow: hidden;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .companion-card::before {
@@ -479,9 +485,10 @@ body {
 }
 
 .companion-card:hover {
-  border-color: var(--accent-primary);
-  background: var(--bg-card-hover);
-  transform: translateY(-2px);
+  border-color: rgba(0, 212, 255, 0.3);
+  background: rgba(0, 212, 255, 0.06);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 212, 255, 0.08);
 }
 
 .companion-card:hover::before {
@@ -489,8 +496,8 @@ body {
 }
 
 .companion-card.selected {
-  border-color: var(--accent-primary);
-  box-shadow: var(--shadow-glow);
+  border-color: rgba(0, 212, 255, 0.4);
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.15), 0 0 60px rgba(168, 85, 247, 0.08);
 }
 
 .companion-card.selected::before {
@@ -552,7 +559,7 @@ body {
 .specialty-tag {
   font-size: 0.7rem;
   padding: 3px 8px;
-  background: rgba(126, 176, 155, 0.15);
+  background: rgba(0, 212, 255, 0.1);
   border-radius: 20px;
   color: var(--accent-primary);
 }
@@ -579,10 +586,11 @@ body {
   left: 0;
   right: 0;
   height: var(--nav-height);
-  background: rgba(15, 15, 26, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--bg-glass-border);
+  background: rgba(10, 14, 26, 0.8);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+  box-shadow: 0 1px 30px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(0, 212, 255, 0.06);
   display: flex;
   align-items: center;
   padding: 0 24px;
@@ -642,7 +650,8 @@ body {
 
 .nav-link.active {
   color: var(--accent-primary);
-  background: rgba(126, 176, 155, 0.1);
+  background: rgba(0, 212, 255, 0.08);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.1);
 }
 
 .nav-link i {
@@ -682,10 +691,11 @@ body {
   left: 0;
   right: 0;
   height: var(--mobile-nav-height);
-  background: rgba(15, 15, 26, 0.92);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--bg-glass-border);
+  background: rgba(10, 14, 26, 0.92);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  border-top: 1px solid rgba(0, 212, 255, 0.08);
+  box-shadow: 0 -1px 30px rgba(0, 0, 0, 0.3), 0 -1px 0 rgba(0, 212, 255, 0.06);
   padding: 0 8px;
   z-index: 100;
   justify-content: space-around;
@@ -773,10 +783,17 @@ body {
 }
 
 .glass-card {
-  background: var(--bg-glass);
-  border: 1px solid var(--bg-glass-border);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: var(--transition-normal);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(0, 212, 255, 0.12);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2), 0 0 15px rgba(0, 212, 255, 0.04);
 }
 
 .card-header {
@@ -824,15 +841,16 @@ body {
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: rgba(232, 168, 124, 0.1);
-  border: 1px solid rgba(232, 168, 124, 0.25);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
   border-radius: var(--radius-xl);
   color: var(--accent-warm);
   font-weight: 600;
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.06);
 }
 
 .streak-badge i {
-  color: #E8A87C;
+  color: #f59e0b;
 }
 
 .streak-label {
@@ -875,8 +893,9 @@ body {
 }
 
 .mood-face.selected {
-  background: rgba(126, 176, 155, 0.15);
+  background: rgba(0, 212, 255, 0.1);
   border-color: var(--accent-primary);
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.12);
 }
 
 .mood-emoji {
@@ -1055,8 +1074,8 @@ body {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  border-right: 1px solid var(--bg-glass-border);
-  background: rgba(0, 0, 0, 0.15);
+  border-right: 1px solid rgba(0, 212, 255, 0.06);
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .avatar-3d-container {
@@ -1065,7 +1084,7 @@ body {
   border-radius: var(--radius-lg);
   overflow: hidden;
   position: relative;
-  background: radial-gradient(circle at 50% 40%, rgba(126, 176, 155, 0.1), transparent 70%);
+  background: radial-gradient(circle at 50% 40%, rgba(0, 212, 255, 0.08), rgba(168, 85, 247, 0.04) 50%, transparent 70%);
 }
 
 .avatar-3d-container canvas {
@@ -1155,16 +1174,18 @@ body {
 
 .chat-message.user {
   align-self: flex-end;
-  background: var(--accent-primary);
+  background: linear-gradient(135deg, #0ea5e9, #a855f7);
   color: #fff;
   border-bottom-right-radius: 4px;
+  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.2);
 }
 
 .chat-message.companion {
   align-self: flex-start;
-  background: var(--bg-glass);
-  border: 1px solid var(--bg-glass-border);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-bottom-left-radius: 4px;
+  backdrop-filter: blur(10px);
 }
 
 .chat-message .message-meta {
@@ -1230,7 +1251,7 @@ body {
 
 .chat-input:focus {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 0 20px rgba(0, 212, 255, 0.08);
 }
 
 .chat-input::placeholder {
@@ -1253,8 +1274,8 @@ body {
 }
 
 .chat-send-btn:hover {
-  transform: scale(1.05);
-  box-shadow: var(--shadow-glow);
+  transform: scale(1.08);
+  box-shadow: 0 0 25px rgba(0, 212, 255, 0.25);
 }
 
 .chat-send-btn:disabled {
@@ -1284,9 +1305,10 @@ body {
 }
 
 .suggestion-chip:hover {
-  background: var(--bg-card-hover);
+  background: rgba(0, 212, 255, 0.06);
   color: var(--text-primary);
   border-color: var(--accent-primary);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.08);
 }
 
 /* ==================== CHECK-IN ==================== */
@@ -1338,7 +1360,7 @@ body {
   width: 100%;
   height: 8px;
   border-radius: 4px;
-  background: linear-gradient(to right, #E87C7C, #E8A87C, #7EB09B);
+  background: linear-gradient(to right, #ef4444, #f59e0b, #00d4ff);
   outline: none;
   transition: var(--transition-fast);
 }
@@ -1361,11 +1383,11 @@ body {
 }
 
 .mood-slider.energy {
-  background: linear-gradient(to right, #9B8EC4, #E8A87C, #F4D03F);
+  background: linear-gradient(to right, #a855f7, #f59e0b, #fbbf24);
 }
 
 .mood-slider.anxiety {
-  background: linear-gradient(to right, #7EB09B, #E8A87C, #E87C7C);
+  background: linear-gradient(to right, #00d4ff, #f59e0b, #ef4444);
 }
 
 .mood-slider-labels {
@@ -1407,9 +1429,10 @@ body {
 }
 
 .emotion-chip.selected {
-  background: rgba(155, 142, 196, 0.2);
+  background: rgba(168, 85, 247, 0.15);
   border-color: var(--accent-secondary);
   color: var(--text-primary);
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.1);
 }
 
 /* ==================== HABITS ==================== */
@@ -1623,7 +1646,7 @@ body {
 }
 
 .category-chip.active {
-  background: rgba(126, 176, 155, 0.15);
+  background: rgba(0, 212, 255, 0.1);
   border-color: var(--accent-primary);
   color: var(--text-primary);
 }
@@ -2316,8 +2339,8 @@ body {
 
 .exercise-card:hover {
   transform: translateY(-3px);
-  border-color: var(--accent-primary);
-  box-shadow: var(--shadow-glow);
+  border-color: rgba(0, 212, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 212, 255, 0.1);
 }
 
 .exercise-card:hover::before {
@@ -2346,7 +2369,7 @@ body {
   font-size: 0.75rem;
   color: var(--accent-primary);
   font-weight: 500;
-  background: rgba(126, 176, 155, 0.1);
+  background: rgba(0, 212, 255, 0.08);
   padding: 3px 10px;
   border-radius: 12px;
 }
@@ -2451,8 +2474,9 @@ body {
 }
 
 .achievement-item.earned {
-  border-color: rgba(126, 176, 155, 0.3);
-  background: rgba(126, 176, 155, 0.05);
+  border-color: rgba(0, 212, 255, 0.2);
+  background: rgba(0, 212, 255, 0.04);
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.05);
 }
 
 .achievement-item.locked {
