@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: serenity-wellness
+    name: reverie-wellness
     runtime: node
     plan: free
     buildCommand: npm install

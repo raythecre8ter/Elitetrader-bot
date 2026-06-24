@@ -110,7 +110,7 @@ class NotificationManager {
           badge: '/assets/icon-192.png',
           vibrate: [100, 50, 100],
           data: { action: data.action },
-          tag: data.tag || 'serenity',
+          tag: data.tag || 'reverie',
           renotify: true
         });
         return;
