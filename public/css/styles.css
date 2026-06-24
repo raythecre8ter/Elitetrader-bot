@@ -1692,7 +1692,7 @@ body {
 }
 
 .toggle-input:checked + .toggle-label::before {
-  background: rgba(126, 176, 155, 0.3);
+  background: rgba(0, 212, 255, 0.2);
   border-color: var(--accent-primary);
 }
 
@@ -2077,8 +2077,9 @@ body {
 
 .theme-btn.active {
   border-color: var(--accent-primary);
-  background: rgba(126, 176, 155, 0.1);
+  background: rgba(0, 212, 255, 0.08);
   color: var(--text-primary);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.1);
 }
 
 .theme-preview {
@@ -2087,10 +2088,10 @@ body {
   border-radius: var(--radius-sm);
 }
 
-.sanctuary-preview { background: linear-gradient(135deg, #0F0F1A, #7EB09B); }
-.ocean-preview { background: linear-gradient(135deg, #0A1628, #5BA4CF); }
-.forest-preview { background: linear-gradient(135deg, #0F1A0F, #6B9E6B); }
-.twilight-preview { background: linear-gradient(135deg, #1A0F28, #B08ED4); }
+.sanctuary-preview { background: linear-gradient(135deg, #0a0e1a, #00d4ff); }
+.ocean-preview { background: linear-gradient(135deg, #060d1f, #38bdf8); }
+.forest-preview { background: linear-gradient(135deg, #061210, #34d399); }
+.twilight-preview { background: linear-gradient(135deg, #0f0720, #c084fc); }
 
 .crisis-resources {
   padding: 16px;
@@ -2661,7 +2662,7 @@ body {
 }
 
 .filter-chip.active {
-  background: rgba(126, 176, 155, 0.15);
+  background: rgba(0, 212, 255, 0.1);
   border-color: var(--accent-primary);
   color: var(--text-primary);
 }
