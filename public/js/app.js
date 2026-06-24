@@ -64,6 +64,27 @@ async function initApp() {
   document.getElementById('main-app').classList.remove('hidden');
   document.getElementById('main-app').classList.add('active');
 
+  // Re-register user server-side if needed (handles DB resets on free hosting)
+  if (currentUser) {
+    try {
+      const check = await fetch(`${API}/dashboard/${currentUser.id}`);
+      const data = await check.json();
+      if (!data.active_companion) {
+        await fetch(`${API}/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ display_name: currentUser.display_name || currentUser.name })
+        });
+        const saved = localStorage.getItem('reverie_companion');
+        if (saved) {
+          const comp = JSON.parse(saved);
+          await fetch(`${API}/users/${currentUser.id}/companions/${comp.id}/activate`, { method: 'PUT' });
+          currentCompanion = comp;
+        }
+      }
+    } catch (e) {}
+  }
+
   await loadCompanions();
   updateGreeting();
   loadDashboard();
@@ -221,6 +242,7 @@ async function selectCompanion(companionId, el) {
   try {
     await fetch(`${API}/users/${currentUser.id}/companions/${companionId}/activate`, { method: 'PUT' });
     currentCompanion = companions.find(c => c.id === companionId);
+    localStorage.setItem('reverie_companion', JSON.stringify(currentCompanion));
 
     await fetch(`${API}/users/${currentUser.id}/onboarding`, { method: 'PUT' });
 
@@ -962,6 +984,7 @@ async function switchCompanion(companionId) {
     const companion = companions.find(c => c.id === companionId);
     if (companion) {
       currentCompanion = companion;
+      localStorage.setItem('reverie_companion', JSON.stringify(currentCompanion));
       showToast(`${companion.name} is ready to chat!`, 'success');
       loadCompanionGallery();
       loadDashboard();
