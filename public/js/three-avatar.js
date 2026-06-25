@@ -2,13 +2,27 @@ class AvatarRenderer {
   constructor() {
     this.scenes = {};
     this.animationFrames = {};
-    this.clock = new THREE.Clock();
+    this.threeAvailable = typeof THREE !== 'undefined';
+    this.portraitsAvailable = typeof AvatarPortraits !== 'undefined';
+    this.clock = this.threeAvailable ? new THREE.Clock() : { getDelta: () => 0.016 };
   }
 
   createAvatar(canvasOrContainer, config, options = {}) {
     const id = options.id || 'avatar-' + Date.now();
     const width = options.width || 280;
     const height = options.height || 320;
+    const companionId = config.companionId || config.name || '';
+
+    // Prefer SVG portraits when available
+    if (this.portraitsAvailable && companionId) {
+      const svgHtml = AvatarPortraits.getPortraitSVG(companionId);
+      if (svgHtml) {
+        return this._renderSVGPortrait(canvasOrContainer, svgHtml, id, width, height, companionId);
+      }
+    }
+
+    // Fallback: try THREE.js rendering
+    if (!this.threeAvailable) return id;
 
     let canvas;
     if (canvasOrContainer instanceof HTMLCanvasElement) {
@@ -44,6 +58,32 @@ class AvatarRenderer {
     this.scenes[id] = { renderer, scene, camera, avatar, config, time: 0 };
 
     this.animate(id);
+    return id;
+  }
+
+  _renderSVGPortrait(canvasOrContainer, svgHtml, id, width, height, companionId) {
+    let container;
+    if (canvasOrContainer instanceof HTMLCanvasElement) {
+      container = canvasOrContainer.parentElement || canvasOrContainer;
+      // Hide the canvas so the SVG shows instead
+      canvasOrContainer.style.display = 'none';
+    } else {
+      container = canvasOrContainer;
+    }
+
+    // Create a wrapper div for the SVG portrait
+    const wrapper = document.createElement('div');
+    wrapper.className = 'avatar-portrait-container';
+    wrapper.setAttribute('data-avatar-id', id);
+    wrapper.style.cssText = 'width:' + width + 'px;height:' + height + 'px;display:flex;align-items:center;justify-content:center;overflow:hidden;';
+    wrapper.innerHTML = svgHtml;
+
+    // Clear container and insert the SVG
+    container.innerHTML = '';
+    container.appendChild(wrapper);
+
+    // Track for destroy
+    this.scenes[id] = { isSVG: true, container: container, wrapper: wrapper, companionId: companionId };
     return id;
   }
 
@@ -510,7 +550,10 @@ class AvatarRenderer {
 
   setExpression(id, expression) {
     const data = this.scenes[id];
-    if (!data || !data.avatar) return;
+    if (!data) return;
+    // SVG portraits do not support dynamic expressions
+    if (data.isSVG) return;
+    if (!data.avatar) return;
 
     // Expressions modify mouth and eyebrow positions
     const { mouth, head } = data.avatar;
@@ -545,7 +588,14 @@ class AvatarRenderer {
       delete this.animationFrames[id];
     }
     if (this.scenes[id]) {
-      this.scenes[id].renderer.dispose();
+      if (this.scenes[id].isSVG) {
+        // SVG portrait cleanup
+        if (this.scenes[id].wrapper && this.scenes[id].wrapper.parentElement) {
+          this.scenes[id].wrapper.remove();
+        }
+      } else if (this.scenes[id].renderer) {
+        this.scenes[id].renderer.dispose();
+      }
       delete this.scenes[id];
     }
   }

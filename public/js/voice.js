@@ -255,36 +255,111 @@
 
   var synth = window.speechSynthesis || null;
 
-  // Companion voice configs
+  // ---------- Companion speech parameters ----------
+  // Tuned per companion personality for natural-sounding delivery
   var COMPANION_VOICES = {
-    aria:  { rate: 0.9,  pitch: 1.1,  volume: 1, voiceName: null, gender: 'female' },
-    kai:   { rate: 0.85, pitch: 0.8,  volume: 1, voiceName: null, gender: 'male'   },
-    luna:  { rate: 1.0,  pitch: 1.2,  volume: 1, voiceName: null, gender: 'female' },
-    sage:  { rate: 0.8,  pitch: 0.9,  volume: 1, voiceName: null, gender: 'male'   },
-    nova:  { rate: 1.05, pitch: 1.0,  volume: 1, voiceName: null, gender: 'neutral'},
-    ember: { rate: 0.8,  pitch: 1.05, volume: 1, voiceName: null, gender: 'female' }
+    aria:  { rate: 0.9,  pitch: 1.05, volume: 1, gender: 'female' },
+    kai:   { rate: 0.85, pitch: 0.85, volume: 1, gender: 'male'   },
+    luna:  { rate: 1.05, pitch: 1.15, volume: 1, gender: 'female' },
+    sage:  { rate: 0.8,  pitch: 0.9,  volume: 1, gender: 'neutral'},
+    nova:  { rate: 1.1,  pitch: 1.0,  volume: 1, gender: 'female' },
+    ember: { rate: 0.78, pitch: 0.95, volume: 1, gender: 'female' }
   };
 
-  // Keywords used to match system voices to a gender preference
+  // ---------- Ranked voice preference lists per companion ----------
+  // Each list is tried in order; first match wins. These target the
+  // highest-quality voices available across Chrome, Edge, Safari, etc.
+  var COMPANION_VOICE_PREFS = {
+    aria: [
+      'Google UK English Female',
+      'Samantha',                     // macOS / iOS
+      'Microsoft Zira',               // Windows
+      'Microsoft Libby Online',       // Edge
+      'Karen',                        // macOS Australian
+      'Moira',                        // macOS Irish
+      'Victoria',                     // macOS
+      'Google US English'
+    ],
+    kai: [
+      'Google UK English Male',
+      'Daniel',                       // macOS
+      'Microsoft David',              // Windows
+      'Microsoft Guy Online',         // Edge
+      'Alex',                         // macOS
+      'Fred',                         // macOS fallback
+      'Thomas',                       // macOS French-English
+      'Google US English'
+    ],
+    luna: [
+      'Google US English',
+      'Samantha',
+      'Microsoft Aria Online',        // Edge — bright, youthful
+      'Microsoft Zira',
+      'Karen',
+      'Tessa',                        // macOS South African
+      'Google UK English Female',
+      'Victoria'
+    ],
+    sage: [
+      'Google UK English Male',
+      'Daniel',
+      'Microsoft Mark',               // Windows — measured
+      'Microsoft David',
+      'Moira',                        // Irish — measured cadence
+      'Alex',
+      'Google US English',
+      'Samantha'
+    ],
+    nova: [
+      'Google US English',
+      'Microsoft Aria Online',
+      'Samantha',
+      'Karen',
+      'Microsoft Zira',
+      'Google UK English Female',
+      'Victoria',
+      'Tessa'
+    ],
+    ember: [
+      'Samantha',                     // macOS — soft, clear
+      'Google UK English Female',
+      'Microsoft Jenny Online',       // Edge — soft
+      'Microsoft Zira',
+      'Moira',
+      'Karen',
+      'Google US English',
+      'Victoria'
+    ]
+  };
+
+  // ---------- Gender fallback keywords ----------
   var FEMALE_VOICE_HINTS = [
-    'female', 'woman', 'girl', 'zira', 'samantha', 'victoria', 'karen',
-    'moira', 'tessa', 'fiona', 'veena', 'alice', 'ellen', 'ioana',
-    'mariska', 'milena', 'laura', 'alva', 'kanya', 'mei-jia', 'sin-ji',
-    'ting-ting', 'google us english', 'google uk english female'
+    'female', 'zira', 'samantha', 'victoria', 'karen', 'moira',
+    'tessa', 'fiona', 'veena', 'alice', 'ellen', 'ioana',
+    'mariska', 'milena', 'laura', 'alva', 'jenny', 'aria',
+    'libby', 'google uk english female', 'google us english'
   ];
   var MALE_VOICE_HINTS = [
-    'male', 'man', 'boy', 'david', 'daniel', 'mark', 'alex', 'fred',
-    'thomas', 'google uk english male'
+    'male', 'david', 'daniel', 'mark', 'alex', 'fred',
+    'thomas', 'guy', 'google uk english male'
   ];
+
+  // ---------- Emoji regex for stripping before speech ----------
+  // Matches most emoji ranges (supplementary plane + variation selectors)
+  var EMOJI_RE = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu;
 
   /**
    * VoiceSpeaker — wraps the Web Speech Synthesis API for text-to-speech
-   * with companion-specific voice configurations.
+   * with companion-specific voice configurations and natural speech
+   * improvements (sentence-level pacing, pause handling, text processing).
    */
   function VoiceSpeaker() {
     this._onEnd = null;
     this._voicesLoaded = false;
     this._voices = [];
+    this._speakingQueue = [];   // queue of { text, config } segments
+    this._queueTimer = null;    // timeout handle for inter-sentence gaps
+    this._isSpeakingQueue = false;
 
     if (synth) {
       this._loadVoices();
@@ -309,7 +384,8 @@
   };
 
   VoiceSpeaker.prototype.isSpeaking = function () {
-    return synth ? synth.speaking : false;
+    if (!synth) return false;
+    return synth.speaking || this._isSpeakingQueue;
   };
 
   VoiceSpeaker.prototype.getVoices = function () {
@@ -317,68 +393,226 @@
     return synth.getVoices();
   };
 
+  // ---------- Text pre-processing for natural speech ----------
+
   /**
-   * Speak the given text using the provided voice configuration.
+   * Clean and prepare text for speech synthesis.
+   * - Strips emojis (they get read aloud literally)
+   * - Converts markdown-style emphasis to plain text
+   * - Normalises whitespace
    * @param {string} text
-   * @param {object} [voiceConfig] — { rate, pitch, volume, voiceName }
+   * @returns {string}
    */
-  VoiceSpeaker.prototype.speak = function (text, voiceConfig) {
-    if (!synth) return;
-    // Cancel any current speech before starting new utterance
-    synth.cancel();
+  VoiceSpeaker.prototype._processText = function (text) {
+    if (!text) return '';
 
-    var utter = new SpeechSynthesisUtterance(text);
-    var cfg = voiceConfig || {};
+    var cleaned = text;
 
-    utter.rate   = typeof cfg.rate   === 'number' ? cfg.rate   : 1;
-    utter.pitch  = typeof cfg.pitch  === 'number' ? cfg.pitch  : 1;
-    utter.volume = typeof cfg.volume === 'number' ? cfg.volume : 1;
-    utter.lang   = 'en-US';
+    // Remove emojis
+    cleaned = cleaned.replace(EMOJI_RE, '');
 
-    // Attempt to match a voice by name first, then by gender hint
-    var voices = this.getVoices();
-    var matched = null;
+    // Strip markdown bold / italic markers
+    cleaned = cleaned.replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1');
+    cleaned = cleaned.replace(/_{1,3}([^_]+)_{1,3}/g, '$1');
 
-    if (cfg.voiceName) {
-      for (var i = 0; i < voices.length; i++) {
-        if (voices[i].name.toLowerCase() === cfg.voiceName.toLowerCase()) {
-          matched = voices[i];
-          break;
+    // Remove markdown links — keep the link text
+    cleaned = cleaned.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+
+    // Replace common symbols that sound awkward when read
+    cleaned = cleaned.replace(/&/g, ' and ');
+    cleaned = cleaned.replace(/@/g, ' at ');
+    cleaned = cleaned.replace(/#/g, ' number ');
+
+    // Collapse multiple spaces / newlines into single space
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+    return cleaned;
+  };
+
+  /**
+   * Split text into speakable segments with pause metadata.
+   * Returns an array of { text: string, pauseAfter: number } objects.
+   *
+   * Strategy:
+   *   - Split on sentence boundaries (. ! ?)
+   *   - Detect parenthetical phrases for volume reduction
+   *   - Assign inter-segment pauses (longer for periods, shorter for commas
+   *     that end up at segment boundaries)
+   *
+   * @param {string} text — already processed text
+   * @returns {Array<{text: string, pauseAfter: number, volume: number|null}>}
+   */
+  VoiceSpeaker.prototype._splitIntoSegments = function (text) {
+    if (!text) return [];
+
+    // Replace ellipses with a sentence-ending marker so they produce a pause
+    var normalized = text.replace(/\.{3,}/g, '.');
+
+    // Split on sentence-ending punctuation, keeping the punctuation
+    // This regex splits after . ! ? followed by a space or end-of-string
+    var rawParts = normalized.split(/(?<=[.!?])\s+/);
+    var segments = [];
+
+    for (var i = 0; i < rawParts.length; i++) {
+      var part = rawParts[i].trim();
+      if (!part) continue;
+
+      // Detect parenthetical content for softer delivery
+      var parenMatch = part.match(/^(.*?)\(([^)]+)\)(.*)$/);
+      if (parenMatch && parenMatch[2].length > 0) {
+        // Before parenthetical
+        var before = parenMatch[1].trim();
+        if (before) {
+          segments.push({ text: before, pauseAfter: 150, volume: null });
         }
+        // Parenthetical — lower volume
+        segments.push({ text: parenMatch[2].trim(), pauseAfter: 150, volume: 0.7 });
+        // After parenthetical
+        var after = parenMatch[3].trim();
+        if (after) {
+          segments.push({ text: after, pauseAfter: 300, volume: null });
+        }
+      } else {
+        // Determine pause based on ending punctuation
+        var pauseMs = 300; // default inter-sentence gap
+        if (part.charAt(part.length - 1) === '!') {
+          pauseMs = 350;
+        } else if (part.charAt(part.length - 1) === '?') {
+          pauseMs = 400; // slightly longer after questions — feels contemplative
+        }
+        segments.push({ text: part, pauseAfter: pauseMs, volume: null });
       }
     }
 
-    if (!matched && cfg.gender) {
-      matched = this._findVoiceByGender(voices, cfg.gender);
+    return segments;
+  };
+
+  /**
+   * Speak the given text using the provided voice configuration.
+   * Text is automatically processed (emoji removal, etc.) and spoken
+   * sentence-by-sentence with natural pauses.
+   *
+   * @param {string} text
+   * @param {object} [voiceConfig] — { rate, pitch, volume, voiceName, gender, preferredVoices }
+   */
+  VoiceSpeaker.prototype.speak = function (text, voiceConfig) {
+    if (!synth) return;
+
+    // Cancel any current speech and queued segments
+    this.stop();
+
+    var cfg = voiceConfig || {};
+    var processed = this._processText(text);
+    var segments = this._splitIntoSegments(processed);
+
+    if (segments.length === 0) return;
+
+    // Resolve the voice once for the entire utterance sequence
+    var resolvedVoice = this._resolveVoice(cfg);
+
+    // Build the queue
+    this._speakingQueue = [];
+    for (var i = 0; i < segments.length; i++) {
+      this._speakingQueue.push({
+        text: segments[i].text,
+        pauseAfter: segments[i].pauseAfter,
+        rate: typeof cfg.rate === 'number' ? cfg.rate : 1,
+        pitch: typeof cfg.pitch === 'number' ? cfg.pitch : 1,
+        volume: segments[i].volume !== null
+          ? (typeof cfg.volume === 'number' ? cfg.volume : 1) * segments[i].volume
+          : (typeof cfg.volume === 'number' ? cfg.volume : 1),
+        voice: resolvedVoice
+      });
     }
 
-    if (matched) {
-      utter.voice = matched;
+    this._isSpeakingQueue = true;
+    this._speakNext();
+  };
+
+  /**
+   * Speak the next segment in the queue, then schedule the following
+   * segment after the inter-sentence pause.
+   * @private
+   */
+  VoiceSpeaker.prototype._speakNext = function () {
+    if (this._speakingQueue.length === 0) {
+      this._isSpeakingQueue = false;
+      if (this._onEnd) this._onEnd();
+      return;
+    }
+
+    var segment = this._speakingQueue.shift();
+    var utter = new SpeechSynthesisUtterance(segment.text);
+    utter.rate = segment.rate;
+    utter.pitch = segment.pitch;
+    utter.volume = segment.volume;
+    utter.lang = 'en-US';
+
+    if (segment.voice) {
+      utter.voice = segment.voice;
     }
 
     var self = this;
+    var isLast = this._speakingQueue.length === 0;
+
     utter.onend = function () {
-      if (self._onEnd) self._onEnd();
+      if (isLast) {
+        self._isSpeakingQueue = false;
+        if (self._onEnd) self._onEnd();
+      } else {
+        // Natural pause between sentences
+        self._queueTimer = setTimeout(function () {
+          self._queueTimer = null;
+          self._speakNext();
+        }, segment.pauseAfter);
+      }
+    };
+
+    utter.onerror = function () {
+      // On error, try to continue with the next segment
+      if (isLast) {
+        self._isSpeakingQueue = false;
+        if (self._onEnd) self._onEnd();
+      } else {
+        self._queueTimer = setTimeout(function () {
+          self._queueTimer = null;
+          self._speakNext();
+        }, segment.pauseAfter);
+      }
     };
 
     synth.speak(utter);
   };
 
   /**
-   * Stop any current speech.
+   * Stop any current speech and clear the sentence queue.
    */
   VoiceSpeaker.prototype.stop = function () {
+    if (this._queueTimer) {
+      clearTimeout(this._queueTimer);
+      this._queueTimer = null;
+    }
+    this._speakingQueue = [];
+    this._isSpeakingQueue = false;
     if (synth) synth.cancel();
   };
 
   /**
    * Return a voice config for the given companion id.
    * @param {string} companionId — e.g. 'aria', 'kai', 'luna'
-   * @returns {object} voice config with rate, pitch, volume, voiceName, gender
+   * @returns {object} voice config with rate, pitch, volume, gender, preferredVoices
    */
   VoiceSpeaker.prototype.getCompanionVoice = function (companionId) {
     var key = (companionId || '').toLowerCase();
-    return COMPANION_VOICES[key] || { rate: 1, pitch: 1, volume: 1, voiceName: null, gender: 'neutral' };
+    var base = COMPANION_VOICES[key] || { rate: 1, pitch: 1, volume: 1, gender: 'neutral' };
+    var prefs = COMPANION_VOICE_PREFS[key] || [];
+    return {
+      rate: base.rate,
+      pitch: base.pitch,
+      volume: base.volume,
+      gender: base.gender,
+      preferredVoices: prefs
+    };
   };
 
   VoiceSpeaker.prototype.onEnd = function (cb) {
@@ -386,9 +620,68 @@
     return this;
   };
 
+  // ---------- Voice resolution ----------
+
+  /**
+   * Resolve the best available SpeechSynthesisVoice for a config.
+   *
+   * Resolution order:
+   *   1. Walk the preferredVoices list (companion-specific ranked names)
+   *   2. Fall back to voiceName (exact match)
+   *   3. Fall back to gender-based heuristic matching
+   *   4. Fall back to the first English voice
+   *
+   * @param {object} cfg — voice config
+   * @returns {SpeechSynthesisVoice|null}
+   * @private
+   */
+  VoiceSpeaker.prototype._resolveVoice = function (cfg) {
+    var voices = this.getVoices();
+    if (voices.length === 0) return null;
+
+    var matched = null;
+    var i, v;
+
+    // 1. Try the ranked preference list (partial, case-insensitive match)
+    if (cfg.preferredVoices && cfg.preferredVoices.length > 0) {
+      for (i = 0; i < cfg.preferredVoices.length; i++) {
+        var pref = cfg.preferredVoices[i].toLowerCase();
+        for (v = 0; v < voices.length; v++) {
+          if (voices[v].name.toLowerCase().indexOf(pref.toLowerCase()) !== -1) {
+            return voices[v];
+          }
+        }
+      }
+    }
+
+    // 2. Exact voiceName match
+    if (cfg.voiceName) {
+      for (i = 0; i < voices.length; i++) {
+        if (voices[i].name.toLowerCase() === cfg.voiceName.toLowerCase()) {
+          return voices[i];
+        }
+      }
+    }
+
+    // 3. Gender-based heuristic
+    if (cfg.gender) {
+      matched = this._findVoiceByGender(voices, cfg.gender);
+      if (matched) return matched;
+    }
+
+    // 4. First English voice, or first voice overall
+    for (i = 0; i < voices.length; i++) {
+      if (voices[i].lang && voices[i].lang.indexOf('en') === 0) {
+        return voices[i];
+      }
+    }
+    return voices[0] || null;
+  };
+
   /**
    * Heuristic voice matching by gender.
    * Falls back to the first English voice if no gendered match is found.
+   * @private
    */
   VoiceSpeaker.prototype._findVoiceByGender = function (voices, gender) {
     var hints = gender === 'female' ? FEMALE_VOICE_HINTS :

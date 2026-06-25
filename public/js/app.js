@@ -58,6 +58,15 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+async function loadCompanions() {
+  try {
+    const res = await fetch(`${API}/companions`);
+    companions = await res.json();
+  } catch (e) {
+    companions = [];
+  }
+}
+
 async function initApp() {
   document.getElementById('onboarding-screen').classList.remove('active');
   document.getElementById('onboarding-screen').classList.add('hidden');
@@ -65,9 +74,31 @@ async function initApp() {
   document.getElementById('main-app').classList.add('active');
 
   await loadCompanions();
+
+  // Re-create user and restore companion if Render's DB was reset
+  if (currentUser) {
+    try {
+      const check = await fetch(`${API}/dashboard/${currentUser.id}`);
+      const data = await check.json();
+      if (!data.active_companion) {
+        await fetch(`${API}/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ display_name: currentUser.display_name || currentUser.name })
+        });
+        const saved = localStorage.getItem('reverie_companion');
+        if (saved) {
+          const comp = JSON.parse(saved);
+          await fetch(`${API}/users/${currentUser.id}/companions/${comp.id}/activate`, { method: 'PUT' });
+          currentCompanion = comp;
+        }
+      }
+    } catch (e) {}
+  }
+
   updateGreeting();
   loadDashboard();
-  loadUserSettings();
+  await loadUserSettings();
   initVoiceControls();
 
   // Initialize companion memory
@@ -183,7 +214,7 @@ async function loadCompanionSelect() {
   const grid = document.getElementById('companion-select-grid');
   grid.innerHTML = companions.map(c => `
     <div class="companion-card" onclick="selectCompanion('${c.id}', this)" data-id="${c.id}">
-      <div class="companion-card-avatar">
+      <div class="companion-card-avatar" id="card-avatar-${c.id}">
         <div class="companion-avatar-placeholder" style="background: ${getAvatarGradient(c.avatar_config)}">
           ${c.name[0]}
         </div>
@@ -196,6 +227,14 @@ async function loadCompanionSelect() {
       </div>
     </div>
   `).join('');
+
+  // Render SVG portraits over placeholders
+  if (window.AvatarPortraits) {
+    companions.forEach(c => {
+      const el = document.getElementById('card-avatar-' + c.id);
+      if (el) AvatarPortraits.render(el, c.id);
+    });
+  }
 }
 
 async function selectCompanion(companionId, el) {
@@ -205,6 +244,7 @@ async function selectCompanion(companionId, el) {
   try {
     await fetch(`${API}/users/${currentUser.id}/companions/${companionId}/activate`, { method: 'PUT' });
     currentCompanion = companions.find(c => c.id === companionId);
+    localStorage.setItem('reverie_companion', JSON.stringify(currentCompanion));
 
     await fetch(`${API}/users/${currentUser.id}/onboarding`, { method: 'PUT' });
 
@@ -292,7 +332,11 @@ async function loadDashboard() {
       document.getElementById('dashboard-companion-greeting').textContent = data.active_companion.greeting;
 
       const avatarContainer = document.getElementById('dashboard-companion-avatar');
-      avatarContainer.innerHTML = `<div class="companion-avatar-placeholder" style="background: ${getAvatarGradient(data.active_companion.avatar_config)}; width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #fff;">${data.active_companion.name[0]}</div>`;
+      if (window.AvatarPortraits) {
+        AvatarPortraits.render(avatarContainer, data.active_companion.id || data.active_companion.name);
+      } else {
+        avatarContainer.innerHTML = `<div class="companion-avatar-placeholder" style="background: ${getAvatarGradient(data.active_companion.avatar_config)}; width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #fff;">${data.active_companion.name[0]}</div>`;
+      }
     }
 
     renderDashboardHabits(data.habits);
@@ -391,10 +435,12 @@ async function initCompanionView() {
     }
   } catch (e) {}
 
-  // Render 3D avatar
+  // Render avatar
   const config = typeof currentCompanion.avatar_config === 'string'
     ? JSON.parse(currentCompanion.avatar_config)
     : currentCompanion.avatar_config;
+  config.companionId = currentCompanion.id;
+  config.name = currentCompanion.name;
 
   if (mainAvatarId) avatarRenderer.destroy(mainAvatarId);
 
@@ -917,6 +963,8 @@ async function loadCompanionGallery() {
     // Render mini avatars
     userCompanions.forEach(c => {
       const config = typeof c.avatar_config === 'string' ? JSON.parse(c.avatar_config) : c.avatar_config;
+      config.companionId = c.id;
+      config.name = c.name;
       const container = document.getElementById(`gallery-avatar-${c.id}`);
       if (container) {
         try {
