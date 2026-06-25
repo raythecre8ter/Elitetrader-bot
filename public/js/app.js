@@ -274,7 +274,7 @@ function showView(viewName) {
     case 'companion': initCompanionView(); break;
     case 'checkin': break;
     case 'habits': loadHabits(); break;
-    case 'reflect': loadReflections(); break;
+    case 'reflect': loadJournalEntries(); break;
     case 'insights': loadInsights(); break;
     case 'exercises': loadExerciseStats(); break;
     case 'achievements': loadAchievementsView(); break;
@@ -802,14 +802,108 @@ async function toggleHabit(habitId, el) {
   }
 }
 
-// ==================== REFLECTIONS ====================
+// ==================== JOURNAL & REFLECTIONS ====================
+
+function switchReflectTab(tab, btn) {
+  document.querySelectorAll('.reflect-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.reflect-tab-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  const target = document.getElementById('reflect-tab-' + tab);
+  if (target) target.classList.add('active');
+
+  if (tab === 'journal') loadJournalEntries();
+  if (tab === 'prompted') loadReflections();
+}
+
+function toggleJournalMood(el) {
+  el.classList.toggle('selected');
+}
+
+async function saveJournalEntry() {
+  const text = document.getElementById('journal-text').value.trim();
+  if (!text) {
+    showToast('Write something first — even a single sentence matters.', 'info');
+    return;
+  }
+
+  const selectedMoods = [];
+  document.querySelectorAll('.journal-mood-tag.selected').forEach(t => {
+    selectedMoods.push(t.dataset.mood);
+  });
+
+  try {
+    await fetch(`${API}/reflections`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: currentUser.id,
+        prompt: '[journal]',
+        response: text,
+        companion_id: currentCompanion?.id,
+        mood_tag: selectedMoods.join(',') || null
+      })
+    });
+
+    showToast('Journal entry saved.', 'success');
+    document.getElementById('journal-text').value = '';
+    document.querySelectorAll('.journal-mood-tag.selected').forEach(t => t.classList.remove('selected'));
+    loadJournalEntries();
+  } catch (err) {
+    showToast('Could not save entry.', 'error');
+  }
+}
+
+async function loadJournalEntries() {
+  if (!currentUser) return;
+
+  const dateEl = document.getElementById('journal-today-date');
+  if (dateEl) {
+    dateEl.textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  }
+
+  try {
+    const res = await fetch(`${API}/reflections/${currentUser.id}`);
+    const all = await res.json();
+    const entries = all.filter(r => r.prompt === '[journal]');
+
+    const container = document.getElementById('journal-entries-list');
+    if (entries.length === 0) {
+      container.innerHTML = '<p class="empty-state">Your journal entries will appear here. Start writing above.</p>';
+      return;
+    }
+
+    container.innerHTML = entries.slice(0, 20).map(r => {
+      const isLong = r.response.length > 200;
+      return `
+        <div class="journal-entry-item">
+          <div class="journal-entry-header">
+            <span class="journal-entry-date">${formatDate(r.created_at)}</span>
+            ${r.mood_tag ? `<span class="journal-entry-mood">${escapeHtml(r.mood_tag)}</span>` : ''}
+          </div>
+          <div class="journal-entry-text${isLong ? ' collapsed' : ''}" id="journal-text-${r.id}">${escapeHtml(r.response)}</div>
+          ${isLong ? `<button class="journal-expand-btn" onclick="toggleJournalExpand('${r.id}', this)">Read more</button>` : ''}
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Load journal error:', err);
+  }
+}
+
+function toggleJournalExpand(id, btn) {
+  const el = document.getElementById('journal-text-' + id);
+  if (!el) return;
+  const collapsed = el.classList.toggle('collapsed');
+  btn.textContent = collapsed ? 'Read more' : 'Show less';
+}
 
 async function loadReflections() {
   await getNewPrompt();
 
   try {
     const res = await fetch(`${API}/reflections/${currentUser.id}`);
-    const reflections = await res.json();
+    const all = await res.json();
+    const reflections = all.filter(r => r.prompt !== '[journal]');
 
     const container = document.getElementById('reflections-list');
     if (reflections.length === 0) {

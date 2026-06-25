@@ -486,24 +486,68 @@
             <h2><i class="fas fa-feather"></i> Daily Reflection</h2>
           </div>
 
-          <div class="card glass-card reflect-card">
-            <div class="reflect-prompt">
-              <div class="prompt-icon"><i class="fas fa-quote-left"></i></div>
-              <p id="reflection-prompt" class="reflection-prompt-text">Loading your reflection prompt...</p>
-              <button class="btn-text" onclick="getNewPrompt()">
-                <i class="fas fa-shuffle"></i> Different prompt
-              </button>
-            </div>
-            <textarea id="reflection-response" class="sanctuary-textarea" placeholder="Let your thoughts flow..." rows="6"></textarea>
-            <button class="btn-primary" onclick="submitReflection()">
-              <i class="fas fa-feather"></i>
-              <span>Save Reflection</span>
+          <!-- Tab switcher -->
+          <div class="reflect-tabs">
+            <button class="reflect-tab active" data-tab="journal" onclick="switchReflectTab('journal', this)">
+              <i class="fas fa-book"></i> My Journal
+            </button>
+            <button class="reflect-tab" data-tab="prompted" onclick="switchReflectTab('prompted', this)">
+              <i class="fas fa-quote-left"></i> Guided Prompt
             </button>
           </div>
 
-          <div class="past-reflections">
-            <h3>Past Reflections</h3>
-            <div id="reflections-list"></div>
+          <!-- Journal Tab -->
+          <div id="reflect-tab-journal" class="reflect-tab-content active">
+            <div class="card glass-card reflect-card journal-card">
+              <div class="journal-header">
+                <h3><i class="fas fa-pen-fancy"></i> Write Your Thoughts</h3>
+                <span class="journal-date" id="journal-today-date"></span>
+              </div>
+              <p class="journal-subtitle">This is your private space. No prompts, no pressure — just you and your thoughts.</p>
+              <textarea id="journal-text" class="sanctuary-textarea journal-textarea" placeholder="What's on your mind today? How are you really feeling? Write anything — a sentence, a paragraph, a stream of consciousness..." rows="8"></textarea>
+              <div class="journal-toolbar">
+                <div class="journal-mood-tags">
+                  <span class="journal-mood-tag" data-mood="grateful" onclick="toggleJournalMood(this)">grateful</span>
+                  <span class="journal-mood-tag" data-mood="hopeful" onclick="toggleJournalMood(this)">hopeful</span>
+                  <span class="journal-mood-tag" data-mood="anxious" onclick="toggleJournalMood(this)">anxious</span>
+                  <span class="journal-mood-tag" data-mood="reflective" onclick="toggleJournalMood(this)">reflective</span>
+                  <span class="journal-mood-tag" data-mood="sad" onclick="toggleJournalMood(this)">sad</span>
+                  <span class="journal-mood-tag" data-mood="inspired" onclick="toggleJournalMood(this)">inspired</span>
+                </div>
+                <button class="btn-primary" onclick="saveJournalEntry()">
+                  <i class="fas fa-save"></i>
+                  <span>Save Entry</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="past-journal-entries">
+              <h3>Past Entries</h3>
+              <div id="journal-entries-list"></div>
+            </div>
+          </div>
+
+          <!-- Guided Prompt Tab -->
+          <div id="reflect-tab-prompted" class="reflect-tab-content">
+            <div class="card glass-card reflect-card">
+              <div class="reflect-prompt">
+                <div class="prompt-icon"><i class="fas fa-quote-left"></i></div>
+                <p id="reflection-prompt" class="reflection-prompt-text">Loading your reflection prompt...</p>
+                <button class="btn-text" onclick="getNewPrompt()">
+                  <i class="fas fa-shuffle"></i> Different prompt
+                </button>
+              </div>
+              <textarea id="reflection-response" class="sanctuary-textarea" placeholder="Let your thoughts flow..." rows="6"></textarea>
+              <button class="btn-primary" onclick="submitReflection()">
+                <i class="fas fa-feather"></i>
+                <span>Save Reflection</span>
+              </button>
+            </div>
+
+            <div class="past-reflections">
+              <h3>Past Reflections</h3>
+              <div id="reflections-list"></div>
+            </div>
           </div>
         </div>
       </div>
