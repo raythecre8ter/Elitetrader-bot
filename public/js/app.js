@@ -466,6 +466,18 @@ async function initCompanionView() {
     chatHistory = [];
     renderChat();
   }
+
+  // Set happy expression when first opening the companion view
+  if (avatarRenderer && mainAvatarId) {
+    avatarRenderer.setExpression(mainAvatarId, 'happy');
+
+    // Settle to calm resting state after a few seconds
+    setTimeout(() => {
+      if (avatarRenderer && mainAvatarId) {
+        avatarRenderer.setExpression(mainAvatarId, 'calm');
+      }
+    }, 3000);
+  }
 }
 
 function renderChat() {
@@ -507,6 +519,11 @@ async function sendMessage() {
   // Add user message
   addChatMessage(message, 'user');
 
+  // Set avatar to calm/listening while companion is "thinking"
+  if (avatarRenderer && mainAvatarId) {
+    avatarRenderer.setExpression(mainAvatarId, 'calm');
+  }
+
   // Show typing indicator
   const typingEl = document.createElement('div');
   typingEl.className = 'typing-indicator';
@@ -536,6 +553,29 @@ async function sendMessage() {
 
     addChatMessage(data.message, 'companion');
 
+    // Update avatar expression based on detected emotion
+    if (avatarRenderer && mainAvatarId) {
+      const emotionToExpression = {
+        'joy': 'happy',
+        'sadness': 'sad',
+        'anxiety': 'worried',
+        'anger': 'angry',
+        'exhaustion': 'sad',
+        'neutral': 'calm'
+      };
+      const detectedExpression = data.emotion
+        ? (emotionToExpression[data.emotion] || 'calm')
+        : 'calm';
+      avatarRenderer.setExpression(mainAvatarId, detectedExpression);
+
+      // Return to calm resting state after a few seconds
+      setTimeout(() => {
+        if (avatarRenderer && mainAvatarId) {
+          avatarRenderer.setExpression(mainAvatarId, 'calm');
+        }
+      }, 5000);
+    }
+
     // Show AI badge if powered by Claude
     if (data.ai_powered) {
       const msgs = document.getElementById('chat-messages');
@@ -549,7 +589,8 @@ async function sendMessage() {
       }
     }
 
-    if (data.companion_expression && mainAvatarId) {
+    // Also honor explicit companion_expression from the API if present
+    if (data.companion_expression && avatarRenderer && mainAvatarId) {
       avatarRenderer.setExpression(mainAvatarId, data.companion_expression);
     }
 

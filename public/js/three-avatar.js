@@ -548,11 +548,38 @@ class AvatarRenderer {
     tick();
   }
 
+  // Map internal expression names to AvatarPortraits expression set
+  _mapExpression(expression) {
+    const map = {
+      'happy': 'happy',
+      'joy': 'happy',
+      'surprised': 'surprised',
+      'sad': 'sad',
+      'melancholy': 'sad',
+      'angry': 'angry',
+      'frustrated': 'angry',
+      'calm': 'calm',
+      'neutral': 'calm',
+      'default': 'calm',
+      'worried': 'worried',
+      'anxious': 'worried',
+      'concerned': 'worried'
+    };
+    return map[expression] || 'calm';
+  }
+
   setExpression(id, expression) {
     const data = this.scenes[id];
     if (!data) return;
-    // SVG portraits do not support dynamic expressions
-    if (data.isSVG) return;
+
+    // SVG portraits delegate to AvatarPortraits for expression changes
+    if (data.isSVG) {
+      if (typeof AvatarPortraits !== 'undefined' && AvatarPortraits.setExpression) {
+        AvatarPortraits.setExpression(data.companionId, this._mapExpression(expression));
+      }
+      return;
+    }
+
     if (!data.avatar) return;
 
     // Expressions modify mouth and eyebrow positions
