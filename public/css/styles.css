@@ -492,12 +492,16 @@ body {
 }
 
 .companion-card-avatar {
-  width: 56px;
-  height: 56px;
+  width: 72px;
+  height: 72px;
   border-radius: var(--radius-full);
   margin-bottom: 12px;
   position: relative;
   overflow: hidden;
+}
+
+.companion-card-avatar .avatar-portrait {
+  filter: brightness(1.1) saturate(1.15);
 }
 
 .companion-card-avatar canvas {
@@ -1059,7 +1063,23 @@ body {
   border-radius: var(--radius-lg);
   overflow: hidden;
   position: relative;
-  background: radial-gradient(circle at 50% 40%, rgba(126, 176, 155, 0.1), transparent 70%);
+  background: radial-gradient(circle at 50% 40%, rgba(0, 212, 255, 0.08), rgba(168, 85, 247, 0.04) 60%, transparent 100%);
+}
+
+.avatar-3d-container .avatar-portrait-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.avatar-3d-container .portrait-svg-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+.avatar-3d-container .avatar-portrait {
+  width: 100%;
+  height: 100%;
+  filter: brightness(1.1) saturate(1.15);
 }
 
 .avatar-3d-container canvas {
